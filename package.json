@@ -1,0 +1,11 @@
+{
+  "name": "toponimo",
+  "private": true,
+  "scripts": {
+    "data": "cd scripts && python3 download.py && python3 build_real.py && python3 build_fake.py && python3 export.py",
+    "build": "tsc && python3 scripts/build_html.py"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
