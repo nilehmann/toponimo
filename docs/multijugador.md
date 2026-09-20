@@ -19,13 +19,20 @@ propio host y no se conecta a ninguna parte. Mismo estado, mismo reducer, misma 
 resumen. No existe un campo que diga en qué modo estamos.
 
 **Nada depende de una conexión permanente.** Se manda un mensaje cuando alguien responde, cuando el
-host revela o avanza, y cuando alguien llega o se va. Entre medio no circula nada.
+host revela o avanza, y cuando alguien llega o se va; cada uno arrastra su acuse de recibo y, si
+hace falta, unos pocos reintentos acotados. No hay latidos ni sondeo: entre una acción y la
+siguiente no circula nada.
 
 ## El estado
 
 ```ts
-type PlayerId = string;   // uuid v4, generado una vez por dispositivo
-type RoomCode = string;   // 6 caracteres del alfabeto sin ambigüedades
+/** Identifica al dispositivo entre reconexiones. Solo lo conocen él y el host. */
+type DeviceId = string;   // uuid v4, `crypto.randomUUID()` la primera vez, nunca se regenera
+
+/** Identifica a un jugador dentro de una sala. Lo asigna el host en orden de llegada. */
+type PlayerId = string;   // "1", "2", "3"… único solo dentro de esa sala
+
+type RoomCode = string;   // 7 caracteres: broker + secreto
 type RoundIndex = number; // 0..14
 
 /** Lo que responde un jugador: true = "existe", false = "inventado". */
@@ -72,9 +79,19 @@ interface SessionState {
   game: Game | null;
   /** Partidas cerradas, en orden. */
   history: Game[];
+  /** Qué dispositivo es qué jugador. Es lo que reconoce a quien vuelve. */
+  devices: Record<DeviceId, PlayerId>;
   createdAt: number;
 }
+
+/** Lo que se difunde: el estado menos lo que solo le sirve al host. */
+type Snapshot = Omit<SessionState, "history" | "devices">;
 ```
+
+El host persiste más de lo que manda. `history` son partidas terminadas que ningún cliente muestra,
+y `devices` es el mapa que reconoce a quien vuelve: los dos son asunto del host. Dejarlos fuera del
+cable mantiene la difusión chica, y con ella barata la redundancia de mandar el estado entero en
+cada cambio.
 
 ### Invariantes
 
@@ -111,12 +128,17 @@ sesión se puede calcular después sin cambiar el estado. La UI hoy muestra solo
 
 ```ts
 type ClientMessage =
-  | { t: "hello"; playerId: PlayerId; name: string; haveVersion: number }
+  /** El único mensaje que lleva el DeviceId. */
+  | { t: "hello"; deviceId: DeviceId; name: string; haveVersion: number }
   | { t: "answer"; playerId: PlayerId; gameNumber: number; round: RoundIndex; guess: Guess }
   | { t: "ack"; playerId: PlayerId; version: number }
   | { t: "bye"; playerId: PlayerId };
 
-type HostMessage = { t: "snapshot"; state: SessionState };
+type HostMessage =
+  /** Respuesta a `hello`: le dice al cliente quién es en esta sala. */
+  | { t: "welcome"; playerId: PlayerId; state: Snapshot }
+  | { t: "upToDate"; playerId: PlayerId; version: number }
+  | { t: "snapshot"; state: Snapshot };
 ```
 
 ### Reglas
@@ -128,9 +150,18 @@ type HostMessage = { t: "snapshot"; state: SessionState };
    reenviar la misma no cambia nada.
 4. **El host rechaza respuestas de una ronda ya revelada**, y de un `gameNumber` que no sea el
    actual. Sin esto el puntaje cambiaría después de que todos vieron el resultado.
-5. **`hello` sirve de saludo y de resincronización.** Lleva `haveVersion`, así el host manda el
-   snapshot solo si el cliente está atrasado. Es el mismo mensaje al entrar por primera vez y al
-   volver después de cerrar la app.
+5. **`hello` sirve de saludo y de resincronización.** Es el mismo mensaje al entrar por primera
+   vez y al volver después de cerrar la app. Lleva el `DeviceId` y `haveVersion`, y el host
+   **siempre** contesta: `welcome` con el estado si el cliente está atrasado, `upToDate` si ya
+   está al día. Que la respuesta sea segura es lo que deja al cliente distinguir *estoy
+   sincronizado* de *no alcanzo al host*.
+6. **El host reparte los `PlayerId`.** Busca el `DeviceId` en `devices`: si ya está, devuelve el
+   mismo jugador de antes; si no, asigna el siguiente número y lo registra. Un `PlayerId` no se
+   reutiliza dentro de una sala aunque alguien se vaya, para que el historial siga siendo legible.
+   El host se queda con el `1` al crear la sala, y jugando solo ese es el único que existe. El
+   cliente no puede mandar nada más hasta que el host le diga quién es.
+7. **El cliente reenvía lo que no ve confirmado.** Una respuesta se reenvía a los 2, 4 y 8 segundos
+   mientras no aparezca en un snapshot.
 
 ### Una ronda
 
@@ -138,7 +169,8 @@ type HostMessage = { t: "snapshot"; state: SessionState };
 2. Un jugador toca **Existe** o **Inventado**. La UI marca su elección de inmediato y guarda la
    respuesta como pendiente; manda `answer`.
 3. El host la registra, sube la versión y difunde. El cliente ve su respuesta confirmada en el
-   snapshot y suelta la pendiente.
+   snapshot y suelta la pendiente. Mientras no la vea, la reenvía: sin eso, un `answer` perdido no
+   se notaría hasta el reveal, cuando ya no tiene arreglo.
 4. El host ve *"3 de 5 respondieron"*. El botón de revelar está siempre activo: decide él, no un
    reloj ni un quórum. Quien no respondió queda sin acierto en esa ronda.
 5. Al revelar, `revealed` pasa a `true`, sube la versión y se difunde. Todos ven el resultado y
@@ -165,11 +197,11 @@ interface HostRuntime {
   retries: Record<PlayerId, { version: number; attempt: number }>;
 }
 
-/** Efímero, solo en el cliente. */
+/** Solo en el cliente. `pending` se persiste; `version` es efímera. */
 interface ClientRuntime {
   /** Última versión aplicada. */
   version: number;
-  /** Respuesta enviada y todavía no confirmada por un snapshot. */
+  /** Respuesta enviada y todavía no confirmada. Se reenvía hasta verla en un snapshot. */
   pending: { gameNumber: number; round: RoundIndex; guess: Guess } | null;
 }
 ```
@@ -184,9 +216,14 @@ para el host, no un permiso: los botones de revelar y avanzar nunca se bloquean.
 
 ### Reconectarse
 
-Quien cierra la app y vuelve conserva su `playerId`, manda `hello` con la última versión que tenía y
-recibe el estado completo. Vuelve como el mismo jugador, con sus respuestas intactas, no como uno
-nuevo.
+Quien cierra la app y vuelve conserva su `DeviceId`, manda `hello` con la última versión que tenía y
+recibe su `PlayerId` junto al estado. Vuelve como el mismo jugador, con sus respuestas intactas, no
+como uno nuevo. Si tenía una respuesta sin confirmar, la reenvía apenas sabe quién es.
+
+El cliente además manda `hello` cada vez que la pestaña vuelve a primer plano, escuchando
+`visibilitychange`. Ese es el caso real —el teléfono guardado en el bolsillo— y es el único
+disparador del lado del cliente: fuera de eso, quien quedó atrasado depende de los reenvíos del
+host. Si el `hello` no obtiene respuesta en unos segundos, la UI muestra que no alcanza al host.
 
 Si el host cierra la app, la partida queda congelada: nadie puede avanzar, porque nadie más tiene
 autoridad. Su estado está en `localStorage`, así que al reabrir retoma exactamente donde iba y
@@ -231,8 +268,9 @@ toponimo/{code}/in          clientes -> host   hello, answer, ack, bye
 
 Los clientes se suscriben a `/host` y a su propio `/c/{id}`; el host, a `/in`.
 
-- **Broker**: lista de brokers públicos por `wss://` con failover, configurable en tiempo de build.
-  El sitio se sirve por HTTPS, así que `ws://` queda descartado por contenido mixto.
+- **Broker**: una lista de brokers públicos por `wss://`, fija en tiempo de build. Cuál se usa lo
+  decide el primer carácter del código, no cada cliente. El sitio se sirve por HTTPS, así que
+  `ws://` queda descartado por contenido mixto.
 - **QoS 1** al publicar y al suscribirse.
 - **Sesión persistente** (`clean: false`) con `clientId` derivado del `playerId`, para que una caída
   corta no pierda los mensajes que llegaron mientras tanto.
@@ -241,8 +279,15 @@ Los clientes se suscriben a `/host` y a su propio `/c/{id}`; el host, a `/in`.
 
 ## Entrar a una sala
 
-El código son 6 caracteres del alfabeto `23456789ABCDEFGHJKMNPQRSTUVWXYZ`, que excluye los pares que
-se confunden al dictar. Identifica el topic y deriva la clave.
+El código son 7 caracteres del alfabeto `23456789ABCDEFGHJKMNPQRSTUVWXYZ`, que excluye los pares que
+se confunden al dictar. El primero identifica el broker; los otros seis son el secreto de la sala.
+El código completo nombra el topic y deriva la clave.
+
+Llevar el broker en el código es lo que garantiza que el host y los jugadores terminen en el mismo.
+Si cada cliente eligiera por su cuenta, un failover podría partir la sala en dos mitades que no se
+ven entre sí y que no dan ningún síntoma: cada una creería estar sola. El host prueba los brokers al
+crear la sala, se queda con el primero que responde y lo publica en ese primer carácter. Si ese
+broker se cae más tarde, la sala se pierde y el host reparte un código nuevo.
 
 Se entra de tres formas: tecleándolo, por un link que lo lleva en el fragmento, o escaneando el QR
 que el host muestra en pantalla. El QR es lo que sirve cuando están todos en la misma mesa.
@@ -257,18 +302,26 @@ invitárselo, pero existir siempre es lo que permite que no haya ningún campo d
 | Quién | Qué guarda |
 |---|---|
 | Host | `SessionState` completo. Es la única copia autoritativa. |
-| Jugador | Solo su identidad: `playerId`, nombre y último código. |
+| Jugador | Su identidad y la respuesta que todavía no le confirman. |
 
 ```ts
 interface Identity {
-  playerId: PlayerId;
+  deviceId: DeviceId;
   name: string;
   lastRoomCode: RoomCode | null;
+  /** Respuesta mandada y no confirmada. Persiste para poder reenviarla tras cerrar la app. */
+  pending: { gameNumber: number; round: RoundIndex; guess: Guess } | null;
 }
 ```
 
-Un jugador no guarda el estado de la partida: al volver lo pide. Así nunca muestra algo viejo como
-si fuera actual.
+Un jugador no guarda el estado de la partida: al volver lo pide, y así nunca muestra algo viejo como
+si fuera actual. Lo único suyo que persiste es la respuesta sin confirmar, porque es lo único que se
+perdería para siempre si cierra la app en el momento justo. Tampoco guarda su `PlayerId`: se lo dice
+el host en cada `hello`, que es lo correcto porque es el host quien lo reparte.
+
+El `DeviceId` viaja solo dentro de `hello` y solo hacia el host, que nunca lo redistribuye. Lo que
+ven los demás es el `PlayerId`, que no significa nada fuera de esa sala y no permite reconocerte en
+la siguiente.
 
 ## La interfaz
 
@@ -324,11 +377,12 @@ posible mientras los datos sean un archivo estático público, así que no se in
 el código puede publicar haciéndose pasar por otro, o por el host. Es un juego entre conocidos y no
 se firma nada.
 
-**El código es una clave débil.** Seis caracteres son unos 30 bits. Alguien que esté raspando el
+**El código es una clave débil.** Sus seis caracteres de secreto son unos 30 bits. Alguien que esté raspando el
 broker público mientras juegas podría romperlo. Lo que protege es el descuido, no a un atacante.
 
 **Los brokers públicos no dan garantías.** Son servicios de prueba: pueden caerse, limitar tasa o
-desaparecer. El failover entre varios y los reenvíos lo hacen tolerable, no confiable.
+desaparecer. Como el broker queda fijado en el código, la caída del que le tocó a una sala termina
+esa sala: no hay migración en caliente. Los reenvíos cubren mensajes sueltos perdidos, no eso.
 
 **Alrededor de ocho jugadores.** No por el protocolo, que es una estrella y manda pocos KB, sino
 porque más gente en una mesa deja de ser un juego de adivinar letreros.
