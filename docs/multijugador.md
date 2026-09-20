@@ -26,7 +26,12 @@ siguiente no circula nada.
 ## El estado
 
 ```ts
-type PlayerId = string;   // uuid v4, generado una vez por dispositivo
+/** Identifica al dispositivo entre reconexiones. Solo lo conocen él y el host. */
+type DeviceId = string;   // uuid v4, `crypto.randomUUID()` la primera vez, nunca se regenera
+
+/** Identifica a un jugador dentro de una sala. Lo asigna el host en orden de llegada. */
+type PlayerId = string;   // "1", "2", "3"… único solo dentro de esa sala
+
 type RoomCode = string;   // 7 caracteres: broker + secreto
 type RoundIndex = number; // 0..14
 
@@ -74,9 +79,19 @@ interface SessionState {
   game: Game | null;
   /** Partidas cerradas, en orden. */
   history: Game[];
+  /** Qué dispositivo es qué jugador. Es lo que reconoce a quien vuelve. */
+  devices: Record<DeviceId, PlayerId>;
   createdAt: number;
 }
+
+/** Lo que se difunde: el estado menos lo que solo le sirve al host. */
+type Snapshot = Omit<SessionState, "history" | "devices">;
 ```
+
+El host persiste más de lo que manda. `history` son partidas terminadas que ningún cliente muestra,
+y `devices` es el mapa que reconoce a quien vuelve: los dos son asunto del host. Dejarlos fuera del
+cable mantiene la difusión chica, y con ella barata la redundancia de mandar el estado entero en
+cada cambio.
 
 ### Invariantes
 
@@ -113,14 +128,17 @@ sesión se puede calcular después sin cambiar el estado. La UI hoy muestra solo
 
 ```ts
 type ClientMessage =
-  | { t: "hello"; playerId: PlayerId; name: string; haveVersion: number }
+  /** El único mensaje que lleva el DeviceId. */
+  | { t: "hello"; deviceId: DeviceId; name: string; haveVersion: number }
   | { t: "answer"; playerId: PlayerId; gameNumber: number; round: RoundIndex; guess: Guess }
   | { t: "ack"; playerId: PlayerId; version: number }
   | { t: "bye"; playerId: PlayerId };
 
 type HostMessage =
-  | { t: "snapshot"; state: SessionState }
-  | { t: "upToDate"; version: number };
+  /** Respuesta a `hello`: le dice al cliente quién es en esta sala. */
+  | { t: "welcome"; playerId: PlayerId; state: Snapshot }
+  | { t: "upToDate"; playerId: PlayerId; version: number }
+  | { t: "snapshot"; state: Snapshot };
 ```
 
 ### Reglas
@@ -133,10 +151,16 @@ type HostMessage =
 4. **El host rechaza respuestas de una ronda ya revelada**, y de un `gameNumber` que no sea el
    actual. Sin esto el puntaje cambiaría después de que todos vieron el resultado.
 5. **`hello` sirve de saludo y de resincronización.** Es el mismo mensaje al entrar por primera
-   vez y al volver después de cerrar la app. Lleva `haveVersion`, y el host **siempre** contesta:
-   con un snapshot si el cliente está atrasado, o con `upToDate` si ya está al día. Que la respuesta
-   sea segura es lo que deja al cliente distinguir *estoy sincronizado* de *no alcanzo al host*.
-6. **El cliente reenvía lo que no ve confirmado.** Una respuesta se reenvía a los 2, 4 y 8 segundos
+   vez y al volver después de cerrar la app. Lleva el `DeviceId` y `haveVersion`, y el host
+   **siempre** contesta: `welcome` con el estado si el cliente está atrasado, `upToDate` si ya
+   está al día. Que la respuesta sea segura es lo que deja al cliente distinguir *estoy
+   sincronizado* de *no alcanzo al host*.
+6. **El host reparte los `PlayerId`.** Busca el `DeviceId` en `devices`: si ya está, devuelve el
+   mismo jugador de antes; si no, asigna el siguiente número y lo registra. Un `PlayerId` no se
+   reutiliza dentro de una sala aunque alguien se vaya, para que el historial siga siendo legible.
+   El host se queda con el `1` al crear la sala, y jugando solo ese es el único que existe. El
+   cliente no puede mandar nada más hasta que el host le diga quién es.
+7. **El cliente reenvía lo que no ve confirmado.** Una respuesta se reenvía a los 2, 4 y 8 segundos
    mientras no aparezca en un snapshot.
 
 ### Una ronda
@@ -192,9 +216,9 @@ para el host, no un permiso: los botones de revelar y avanzar nunca se bloquean.
 
 ### Reconectarse
 
-Quien cierra la app y vuelve conserva su `playerId`, manda `hello` con la última versión que tenía y
-recibe el estado completo. Vuelve como el mismo jugador, con sus respuestas intactas, no como uno
-nuevo; si tenía una respuesta sin confirmar, la reenvía.
+Quien cierra la app y vuelve conserva su `DeviceId`, manda `hello` con la última versión que tenía y
+recibe su `PlayerId` junto al estado. Vuelve como el mismo jugador, con sus respuestas intactas, no
+como uno nuevo. Si tenía una respuesta sin confirmar, la reenvía apenas sabe quién es.
 
 El cliente además manda `hello` cada vez que la pestaña vuelve a primer plano, escuchando
 `visibilitychange`. Ese es el caso real —el teléfono guardado en el bolsillo— y es el único
@@ -282,7 +306,7 @@ invitárselo, pero existir siempre es lo que permite que no haya ningún campo d
 
 ```ts
 interface Identity {
-  playerId: PlayerId;
+  deviceId: DeviceId;
   name: string;
   lastRoomCode: RoomCode | null;
   /** Respuesta mandada y no confirmada. Persiste para poder reenviarla tras cerrar la app. */
@@ -292,7 +316,12 @@ interface Identity {
 
 Un jugador no guarda el estado de la partida: al volver lo pide, y así nunca muestra algo viejo como
 si fuera actual. Lo único suyo que persiste es la respuesta sin confirmar, porque es lo único que se
-perdería para siempre si cierra la app en el momento justo.
+perdería para siempre si cierra la app en el momento justo. Tampoco guarda su `PlayerId`: se lo dice
+el host en cada `hello`, que es lo correcto porque es el host quien lo reparte.
+
+El `DeviceId` viaja solo dentro de `hello` y solo hacia el host, que nunca lo redistribuye. Lo que
+ven los demás es el `PlayerId`, que no significa nada fuera de esa sala y no permite reconocerte en
+la siguiente.
 
 ## La interfaz
 
