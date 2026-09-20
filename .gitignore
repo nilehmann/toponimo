@@ -1,4 +1,5 @@
 node_modules/
-build/
+dist/
 data/raw/
+public/game_data.json
 __pycache__/

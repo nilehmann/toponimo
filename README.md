@@ -2,15 +2,22 @@
 
 ¿Esta localidad chilena existe o es chamullo? 15 letreros por partida, mitad reales y mitad inventados.
 
-`dist/index.html` es autocontenido: se abre directo o se publica en GitHub Pages.
+Aplicación React (Vite + Tailwind). Se publica en GitHub Pages desde `.github/workflows/pages.yml`.
 
-## Reconstruir
+## Correr
+
+```sh
+npm install
+npm run dev      # servidor de desarrollo
+npm run build    # -> dist/
+npm run preview  # sirve dist/ como en producción
+```
+
+Para regenerar los datos, que ya vienen versionados:
 
 ```sh
 pip install -r requirements.txt
-npm install
-npm run data    # opcional: data/ ya está versionado
-npm run build   # src/ + data/ -> dist/index.html
+npm run data     # scripts/ -> data/*.json
 ```
 
 ## Datos reales
@@ -33,4 +40,7 @@ Se descarta cualquiera que esté a distancia de Levenshtein menor que 2 de algun
 ## Detalles no obvios
 
 - `build_fake.py` usa semilla fija y tarda alrededor de un minuto. Cambiar el orden de sus secciones o cualquier filtro cambia todos los inventados.
-- `dist/` y `data/*.json` son generados: se edita `src/` y `scripts/`.
+- `data/*.json` son generados: se edita `src/` y `scripts/`.
+- `export.py` escribe `data/game_data.json`; un plugin de `vite.config.ts` lo copia a `public/`, desde donde la app lo pide con `fetch`. Ese `public/game_data.json` es una copia y no se versiona.
+- `vite.config.ts` fija `base: '/toponimo/'`, la ruta del sitio en Pages. Si el repo cambia de nombre, hay que cambiarla.
+- El tema vive en `<html data-theme>`: un script en `index.html` lo aplica antes del primer render y `useTheme` lo cicla entre sistema, claro y oscuro.

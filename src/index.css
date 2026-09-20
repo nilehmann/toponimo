@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/* El tema lo fija un atributo en <html>: "system" se resuelve a claro u oscuro antes del render. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: "Overpass", "Arial Narrow", Arial, system-ui, sans-serif;
+
+  --color-ground: #e4e7e2;
+  --color-ink: #16241f;
+  --color-muted: #56645e;
+  --color-line: #c3cac4;
+  --color-sign: #00674a;
+  --color-sign-hover: #00513a;
+  --color-post: #8f9894;
+  --color-warn: #f4c21b;
+  --color-warn-hover: #d9aa0c;
+  --color-warn-ink: #1c1a10;
+  --color-ok: #00674a;
+  --color-miss: #a3470e;
+  --color-btn: #ffffff;
+  --color-btn-hover: #e8ebe7;
+}
+
+/* Las utilidades apuntan a estas variables, así que basta redefinirlas para invertir el tema. */
+:root[data-theme="dark"] {
+  --color-ground: #121916;
+  --color-ink: #e4ece7;
+  --color-muted: #9aa8a1;
+  --color-line: #2c3833;
+  --color-sign: #00704f;
+  --color-sign-hover: #00593e;
+  --color-post: #4b5551;
+  --color-ok: #4cc49a;
+  --color-miss: #f0915a;
+  --color-btn: #1c2521;
+  --color-btn-hover: #263029;
+  color-scheme: dark;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
