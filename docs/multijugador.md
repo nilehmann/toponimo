@@ -84,14 +84,38 @@ interface SessionState {
   createdAt: number;
 }
 
-/** Lo que se difunde: el estado menos lo que solo le sirve al host. */
-type Snapshot = Omit<SessionState, "history" | "devices">;
+/** Lo que el cliente ve de una ronda. El letrero se destapa recién al revelar. */
+type PublicRound =
+  | { revealed: false; name: string; answered: PlayerId[] }
+  | { revealed: true; toponym: Toponym; guesses: Record<PlayerId, Guess> };
+
+/** La partida como viaja: sin las rondas que todavía no se juegan. */
+type PublicGame = Omit<Game, "rounds"> & { rounds: PublicRound[] };
+
+/** Lo que se difunde. */
+type Snapshot =
+  Omit<SessionState, "history" | "devices" | "game"> & { game: PublicGame | null };
 ```
 
-El host persiste más de lo que manda. `history` son partidas terminadas que ningún cliente muestra,
-y `devices` es el mapa que reconoce a quien vuelve: los dos son asunto del host. Dejarlos fuera del
-cable mantiene la difusión chica, y con ella barata la redundancia de mandar el estado entero en
-cada cambio.
+El host persiste más de lo que manda, por dos razones distintas.
+
+Una es el tamaño. `history` son partidas terminadas que ningún cliente muestra, y `devices` es el
+mapa que reconoce a quien vuelve: los dos son asunto del host. Dejarlos fuera del cable mantiene la
+difusión chica, y con ella barata la redundancia de mandar el estado entero en cada cambio.
+
+La otra es no repartir las respuestas. `rounds` se recorta en `current + 1`, así que las rondas que
+faltan no viajan; y de la ronda en curso solo va el nombre del letrero hasta que el host revela. Las
+respuestas ajenas tampoco: antes del reveal se manda `answered`, quiénes respondieron, sin qué. Eso
+le alcanza al jugador para ver su propia respuesta confirmada y soltar la pendiente, y al host para
+su contador, sin que nadie sepa qué eligió el otro.
+
+Esto **no** hace el juego menos trampeable: `game_data.json` sigue estando entero en cada teléfono y
+quien quiera buscar el letrero que tiene al frente puede hacerlo. Lo que evita es lo que no cuesta
+nada — leerse las respuestas en el estado del propio dispositivo, y ver qué contestaron los demás
+antes de que se destape.
+
+El snapshot sigue siendo absoluto: es una proyección del estado, no un delta. Aplicarlo dos veces no
+cambia nada y llegar atrasado se arregla con el siguiente.
 
 ### Invariantes
 
@@ -106,20 +130,27 @@ No se guardan: se derivan, para que no puedan contradecir al resto del estado.
 
 | Fase | Condición |
 |---|---|
-| Lobby | `game === null && history.length === 0` |
-| Entre partidas | `game === null && history.length > 0` |
+| Lobby | `game === null` |
 | Respondiendo | `game !== null && !game.revealed && game.finishedAt === null` |
 | Revelado | `game !== null && game.revealed && game.finishedAt === null` |
-| Resumen | `game?.finishedAt !== null` |
+| Resumen | `game !== null && game.finishedAt !== null` |
+
+Las cuatro condiciones son mutuamente excluyentes y cada fila se lee suelta, sin depender del orden
+de la tabla. Vale la pena escribirlas así: `game?.finishedAt !== null` parece equivalente a la
+última, pero con `game === null` da `undefined !== null`, que es `true`, y el Lobby pasaría también
+por Resumen.
 
 Una partida cerrada se queda en `game` mientras se muestra el resumen, y pasa a `history` recién
-cuando el host arranca la siguiente. Así el resumen es un estado real y no un caso especial.
+cuando el host arranca la siguiente. Así el resumen es un estado real y no un caso especial. Por eso
+`game === null` significa una sola cosa: que todavía no se juega la primera partida. Después de eso
+siempre hay una en `game`, en curso o mostrando su resumen, y el ciclo queda Lobby → Respondiendo ⇄
+Revelado → Resumen → Respondiendo.
 
 ### Puntaje
 
-Se deriva: un acierto es `round.guesses[playerId] === round.toponym.real`. El marcador de la partida
-es sobre 15 para todos, incluido quien llegó tarde; las rondas que no le tocaron cuentan como no
-acertadas.
+Se deriva sobre las rondas reveladas, las únicas donde el cliente tiene con qué compararse: un
+acierto es `round.guesses[playerId] === round.toponym.real`. El marcador de la partida es sobre 15
+para todos, incluido quien llegó tarde; las rondas que no le tocaron cuentan como no acertadas.
 
 `history` guarda las partidas completas, así que cualquier marcador acumulado a lo largo de una
 sesión se puede calcular después sin cambiar el estado. La UI hoy muestra solo la partida actual.
@@ -161,18 +192,20 @@ type HostMessage =
    El host se queda con el `1` al crear la sala, y jugando solo ese es el único que existe. El
    cliente no puede mandar nada más hasta que el host le diga quién es.
 7. **El cliente reenvía lo que no ve confirmado.** Una respuesta se reenvía a los 2, 4 y 8 segundos
-   mientras no aparezca en un snapshot.
+   mientras su `PlayerId` no aparezca en el `answered` de esa ronda.
 
 ### Una ronda
 
 1. El host muestra el letrero. Todos están en la misma versión.
 2. Un jugador toca **Existe** o **Inventado**. La UI marca su elección de inmediato y guarda la
    respuesta como pendiente; manda `answer`.
-3. El host la registra, sube la versión y difunde. El cliente ve su respuesta confirmada en el
-   snapshot y suelta la pendiente. Mientras no la vea, la reenvía: sin eso, un `answer` perdido no
-   se notaría hasta el reveal, cuando ya no tiene arreglo.
-4. El host ve *"3 de 5 respondieron"*. El botón de revelar está siempre activo: decide él, no un
-   reloj ni un quórum. Quien no respondió queda sin acierto en esa ronda.
+3. El host la registra, sube la versión y difunde. El cliente se encuentra en `answered` y suelta
+   la pendiente. Mientras no se vea ahí, la reenvía: sin eso, un `answer` perdido no se notaría
+   hasta el reveal, cuando ya no tiene arreglo.
+4. El host ve *"3 de 5 respondieron"*, que sale del largo de `answered`. El botón de revelar está
+   siempre activo: decide él, no un reloj ni un quórum. Quien no respondió queda sin acierto en esa
+   ronda. Ese contador lo puede calcular cualquiera; mostrárselo o no al jugador es una decisión de
+   interfaz, no de protocolo.
 5. Al revelar, `revealed` pasa a `true`, sube la versión y se difunde. Todos ven el resultado y
    quién cayó.
 6. El host avanza. El botón muestra *"4 de 5 al día"* — cuántos acusaron recibo del reveal — y
@@ -377,8 +410,9 @@ posible mientras los datos sean un archivo estático público, así que no se in
 el código puede publicar haciéndose pasar por otro, o por el host. Es un juego entre conocidos y no
 se firma nada.
 
-**El código es una clave débil.** Sus seis caracteres de secreto son unos 30 bits. Alguien que esté raspando el
-broker público mientras juegas podría romperlo. Lo que protege es el descuido, no a un atacante.
+**El código es una clave débil.** Sus seis caracteres de secreto son unos 30 bits. Alguien que esté
+raspando el broker público mientras juegas podría romperlo. Lo que protege es el descuido, no a un
+atacante.
 
 **Los brokers públicos no dan garantías.** Son servicios de prueba: pueden caerse, limitar tasa o
 desaparecer. Como el broker queda fijado en el código, la caída del que le tocó a una sala termina
