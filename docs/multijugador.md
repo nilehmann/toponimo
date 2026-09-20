@@ -59,8 +59,9 @@ interface Game {
   /** Correlativo dentro de la sala: 1, 2, 3… */
   number: number;
   rounds: Round[];
-  /** Quiénes juegan esta partida. Crece si alguien se une a mitad. */
+  /** Quiénes cuentan ahora para *"3 de 5 respondieron"*. Crece al entrar, se achica con `bye`. */
   participants: PlayerId[];
+  /** La ronda en pantalla. Al terminar se queda en 14: el fin lo marca `finishedAt`. */
   current: RoundIndex;
   /** Si la ronda `current` ya fue revelada por el host. */
   revealed: boolean;
@@ -119,6 +120,9 @@ cambia nada y llegar atrasado se arregla con el siguiente.
 
 ### Invariantes
 
+Son sobre el estado del host. `PublicGame` es una proyección y no los cumple: sus rondas llegan
+recortadas.
+
 - `game.rounds.length === 15`.
 - `game.participants` contiene a `hostId`.
 - Toda clave de `guesses` está en `players`.
@@ -151,6 +155,9 @@ Revelado → Resumen → Respondiendo.
 Se deriva sobre las rondas reveladas, las únicas donde el cliente tiene con qué compararse: un
 acierto es `round.guesses[playerId] === round.toponym.real`. El marcador de la partida es sobre 15
 para todos, incluido quien llegó tarde; las rondas que no le tocaron cuentan como no acertadas.
+
+Se calcula sobre quienes aparecen en las `guesses` de la partida, no sobre `participants`: ese
+conjunto se achica cuando alguien manda `bye`, e irse no debería borrar un puntaje ya jugado.
 
 `history` guarda las partidas completas, así que cualquier marcador acumulado a lo largo de una
 sesión se puede calcular después sin cambiar el estado. La UI hoy muestra solo la partida actual.
@@ -193,6 +200,12 @@ type HostMessage =
    cliente no puede mandar nada más hasta que el host le diga quién es.
 7. **El cliente reenvía lo que no ve confirmado.** Una respuesta se reenvía a los 2, 4 y 8 segundos
    mientras su `PlayerId` no aparezca en el `answered` de esa ronda.
+8. **`bye` saca de `participants`, no de `players`.** Quien avisa que se va deja de contar en
+   *"3 de 5 respondieron"*, pero sigue en `players` con sus respuestas intactas y en el marcador de
+   la partida. Si vuelve con `hello`, se repone. El host nunca se saca a sí mismo, que es lo que
+   mantiene el invariante. Que un `bye` no llegue —en el teléfono no hay evento de cierre
+   confiable— no rompe nada: el contador queda inflado y el host revela igual, que es justamente
+   para lo que ese botón nunca se bloquea.
 
 ### Una ronda
 
@@ -240,9 +253,10 @@ interface ClientRuntime {
 ```
 
 Tras difundir la versión N, el host reenvía a quien no haya acusado, por su topic personal para no
-repetirle el mensaje a toda la sala, con espera creciente de 2, 4 y 8 segundos. A los 30 segundos se
-rinde y lo muestra como atrasado. Reenviar es inofensivo: el snapshot es absoluto y aplicarlo dos
-veces no cambia nada.
+repetirle el mensaje a toda la sala, a los 2, 4 y 8 segundos. Al tercer intento sin respuesta se
+rinde y lo muestra como atrasado, unos catorce segundos después del cambio; de ahí en adelante
+recuperarse es cosa del `hello` que manda el cliente al volver a primer plano. Reenviar es
+inofensivo: el snapshot es absoluto y aplicarlo dos veces no cambia nada.
 
 Un `ack` prueba que el cliente recibió esa versión en algún momento, no que siga ahí. Es información
 para el host, no un permiso: los botones de revelar y avanzar nunca se bloquean.
@@ -368,10 +382,13 @@ la siguiente.
 
 El host también juega: está en `players` y su respuesta cuenta.
 
+El jugador ve la lista de `players`, pero no quién sigue conectado: eso vive en el `acked` del host,
+que es efímero y no se difunde. De conexión muestra solo lo suyo —si alcanza al host o no, que sabe
+por la respuesta al `hello`—, que además es lo único que quien mira esa pantalla puede accionar.
+
 Jugando solo se revela apenas se responde, sin un segundo toque. No es un modo aparte ni un ajuste:
 sale de la regla *"revelar automáticamente cuando ya respondieron todos y hay un solo
-participante"*. Cuando entra un segundo jugador, el reveal pasa a ser manual, que es justo lo que
-corresponde.
+participante"*.
 
 Las pantallas se deciden mirando el estado — cuántos participantes hay, si la ronda está revelada —
 y no una bandera de modo que haya que arrastrar por las props.
@@ -417,6 +434,12 @@ atacante.
 **Los brokers públicos no dan garantías.** Son servicios de prueba: pueden caerse, limitar tasa o
 desaparecer. Como el broker queda fijado en el código, la caída del que le tocó a una sala termina
 esa sala: no hay migración en caliente. Los reenvíos cubren mensajes sueltos perdidos, no eso.
+
+**Una sala no se puede revivir.** Si el host pierde su `localStorage` pierde la única copia
+autoritativa, y la salida es repartir un código nuevo y que todos entren de nuevo — crear sala
+sortea siempre uno nuevo, así que es lo único que se puede hacer. Reusar el código viejo sería peor
+que empezar de cero: los clientes que quedaron en una versión alta descartarían cada snapshot de la
+sala nueva por traer una menor, y quedarían congelados sin ningún síntoma.
 
 **Alrededor de ocho jugadores.** No por el protocolo, que es una estrella y manda pocos KB, sino
 porque más gente en una mesa deja de ser un juego de adivinar letreros.
