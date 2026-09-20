@@ -32,6 +32,5 @@ Se descarta cualquiera que esté a distancia de Levenshtein menor que 2 de algun
 
 ## Detalles no obvios
 
-- Cada ronda sortea primero la forma del nombre (`form()` en `export.py`) en la misma proporción que los reales, para que la estructura no delate la respuesta. Un inventado con una forma sin clave en `form()` nunca aparece en el juego.
 - `build_fake.py` usa semilla fija y tarda alrededor de un minuto. Cambiar el orden de sus secciones o cualquier filtro cambia todos los inventados.
 - `dist/` y `data/*.json` son generados: se edita `src/` y `scripts/`.
