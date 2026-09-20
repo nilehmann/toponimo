@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Topónimo · Localidades de Chile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ground: #E4E7E2;
+  --ink: #16241F;
+  --muted: #56645E;
+  --line: #C3CAC4;
+  --sign: #00674A;
+  --sign-edge: #FFFFFF;
+  --post: #8F9894;
+  --warn: #F4C21B;
+  --warn-ink: #1C1A10;
+  --ok: #00674A;
+  --miss: #A3470E;
+  --btn: #FFFFFF;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #121916; --ink: #E4ECE7; --muted: #9AA8A1; --line: #2C3833;
+    --sign: #00704F; --post: #4B5551; --ok: #4CC49A; --miss: #F0915A; --btn: #1C2521;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #121916; --ink: #E4ECE7; --muted: #9AA8A1; --line: #2C3833;
+  --sign: #00704F; --post: #4B5551; --ok: #4CC49A; --miss: #F0915A; --btn: #1C2521;
+  color-scheme: dark;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font-family: "Overpass", "Arial Narrow", Arial, system-ui, sans-serif;
+  font-size: 1.0625rem; line-height: 1.45;
+}
+main { max-width: 34rem; margin: 0 auto; padding: 1.25rem 1.1rem 2.5rem; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+h1 { font-size: 1.35rem; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
+.status { color: var(--muted); font-size: 0.95rem; text-align: right; }
+.status span { display: block; }
+#score { color: var(--ink); font-weight: 600; }
+.intro { color: var(--muted); margin: 0.35rem 0 1rem; max-width: 30rem; }
+
+#ticks { list-style: none; display: grid; grid-template-columns: repeat(15, 1fr); gap: 4px; padding: 0; margin: 0 0 1.75rem; }
+#ticks li { height: 6px; border-radius: 3px; background: var(--line); }
+#ticks li[data-state="now"] { background: var(--ink); }
+#ticks li[data-state="ok"] { background: var(--ok); }
+#ticks li[data-state="miss"] { background: var(--warn); }
+
+/* El letrero */
+.roadside { display: flex; flex-direction: column; align-items: center; }
+.sign {
+  position: relative; overflow: hidden; width: 100%;
+  background: var(--sign); color: #fff; border-radius: 14px;
+  padding: 6px; box-shadow: 0 2px 0 rgba(0,0,0,.25);
+}
+.sign-inner {
+  border: 3px solid var(--sign-edge); border-radius: 9px;
+  min-height: 11rem; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 1.25rem 1rem 1.4rem; text-align: center; gap: .4rem;
+}
+.arrow { width: 34px; height: 38px; }
+#sign-name {
+  margin: 0; font-weight: 800; line-height: 1.02; letter-spacing: 0.005em;
+  font-size: clamp(2rem, 9.5vw, 3.1rem); overflow-wrap: anywhere; hyphens: auto;
+}
+#sign-sub { margin: 0; min-height: 0; }
+.tape {
+  position: absolute; left: -10%; right: -10%; top: 84%;
+  transform: translateY(-50%) rotate(-8deg);
+  background: repeating-linear-gradient(135deg, var(--warn) 0 22px, #1c1a10 22px 34px);
+  padding: 6px 0; pointer-events: none;
+}
+.tape span {
+  display: block; background: var(--warn); color: var(--warn-ink); font-weight: 800;
+  text-align: center; font-size: 1.15rem; padding: .15rem 0; margin: 0 22%;
+}
+.posts { display: flex; justify-content: space-between; width: 58%; }
+.posts i { display: block; width: 10px; height: 34px; background: var(--post); border-radius: 0 0 2px 2px; }
+.plate {
+  background: #fff; color: var(--sign); border: 3px solid var(--sign); border-radius: 8px;
+  font-weight: 800; padding: .2rem .9rem; margin-top: -24px; position: relative; font-size: 1.05rem;
+  max-width: 90%; text-align: center;
+}
+.sign.is-real { animation: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .tape:not([hidden]) { animation: tape .28s ease-out; }
+  .plate:not([hidden]) { animation: drop .25s ease-out; }
+  @keyframes tape { from { transform: translateY(-50%) rotate(-8deg) scaleX(0); } }
+  @keyframes drop { from { transform: translateY(-10px); opacity: 0; } }
+}
+
+/* Controles */
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-top: 1.5rem; }
+button {
+  font: inherit; font-weight: 800; font-size: 1.1rem; cursor: pointer;
+  border-radius: 10px; padding: .95rem 1rem; border: 2px solid var(--ink);
+  background: var(--btn); color: var(--ink); min-height: 3.2rem;
+}
+button:hover { background: color-mix(in srgb, var(--btn) 88%, var(--ink)); }
+button:focus-visible { outline: 3px solid var(--warn); outline-offset: 3px; }
+#btn-real { background: var(--sign); border-color: var(--sign); color: #fff; }
+#btn-real:hover { background: color-mix(in srgb, var(--sign) 85%, #000); }
+#btn-fake { background: var(--warn); border-color: var(--warn); color: var(--warn-ink); }
+#btn-fake:hover { background: color-mix(in srgb, var(--warn) 85%, #000); }
+.keys { color: var(--muted); font-size: .85rem; margin: .6rem 0 0; text-align: center; }
+kbd { font: inherit; font-weight: 600; border: 1px solid var(--line); border-radius: 4px; padding: 0 .3rem; }
+
+.reveal { margin-top: 1.4rem; }
+#verdict { font-weight: 800; font-size: 1.3rem; margin: 0; }
+#verdict[data-state="ok"] { color: var(--ok); }
+#verdict[data-state="miss"] { color: var(--miss); }
+#detail { margin: .2rem 0 1rem; }
+#btn-next { width: 100%; }
+
+/* Resultado */
+#summary h2 { font-size: 1rem; font-weight: 600; margin: 0; color: var(--muted); }
+#summary-score { font-size: clamp(3rem, 16vw, 4.5rem); font-weight: 800; line-height: 1; margin: .2rem 0 .3rem; color: var(--sign); }
+#summary-note { margin: 0 0 1.5rem; }
+#summary-list { list-style: none; padding: 0; margin: 0 0 1.5rem; border-top: 1px solid var(--line); }
+#summary-list li {
+  display: grid; grid-template-columns: 1fr auto; gap: 0 1rem; padding: .6rem 0; border-bottom: 1px solid var(--line);
+}
+.s-name { font-weight: 800; }
+.s-info { grid-column: 1; color: var(--muted); font-size: .92rem; }
+.s-mark { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-weight: 600; font-size: .92rem; }
+li[data-state="ok"] .s-mark { color: var(--ok); }
+li[data-state="miss"] .s-mark { color: var(--miss); }
+#btn-again { width: 100%; background: var(--sign); border-color: var(--sign); color: #fff; }
+
+footer { color: var(--muted); font-size: .82rem; margin-top: 2.5rem; border-top: 1px solid var(--line); padding-top: .8rem; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <section id="play" aria-live="polite">
+    <header>
+      <h1>Topónimo</h1>
+      <p class="status"><span id="counter"></span><span id="score"></span></p>
+    </header>
+    <p class="intro">Cada letrero indica una localidad rural de Chile, o un nombre inventado para confundirte.</p>
+    <ol id="ticks" aria-label="Progreso"></ol>
+
+    <div class="roadside">
+      <div class="sign" id="sign">
+        <div class="sign-inner">
+          <svg class="arrow" viewBox="0 0 34 38" aria-hidden="true"><path d="M17 1 L33 17 H23 V37 H11 V17 H1 Z" fill="#fff"/></svg>
+          <p id="sign-name"></p>
+          <p id="sign-sub"></p>
+        </div>
+        <div class="tape" id="tape" hidden><span>Inventado</span></div>
+      </div>
+      <div class="posts" aria-hidden="true"><i></i><i></i></div>
+      <div class="plate" id="plate" hidden></div>
+    </div>
+
+    <div id="choices">
+      <div class="choices">
+        <button id="btn-real" type="button">Existe</button>
+        <button id="btn-fake" type="button">Inventado</button>
+      </div>
+      <p class="keys">Teclado: <kbd>E</kbd> existe, <kbd>I</kbd> inventado</p>
+    </div>
+
+    <div class="reveal" id="reveal" hidden>
+      <p id="verdict"></p>
+      <p id="detail"></p>
+      <button id="btn-next" type="button">Siguiente letrero</button>
+    </div>
+  </section>
+
+  <section id="summary" hidden>
+    <h2>Tu resultado</h2>
+    <p id="summary-score"></p>
+    <p id="summary-note"></p>
+    <ol id="summary-list"></ol>
+    <button id="btn-again" type="button">Jugar otra ruta</button>
+  </section>
+
+  <footer>
+    Localidades, aldeas y pueblos reales tomados de la cartografía del Censo 2017 (INE). Los nombres inventados se generaron a partir de esos mismos nombres y se verificó que no aparezcan en ese registro.
+  </footer>
+</main>
+<script>/*DATA*/</script>
+<script>/*APP*/</script>
+</body>
+</html>
