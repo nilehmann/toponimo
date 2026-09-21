@@ -7,6 +7,9 @@ referencia: si el código y ese documento no coinciden, hay que arreglar uno de 
   `cd scripts && python3 download.py && python3 build_geo.py`. `download.py` salta lo que ya
   está en `data/raw/` con el tamaño correcto (`--force` lo fuerza), y `build_geo.py` escribe
   `data/processed/geo/{id}.json`, un GeoJSON Feature por topónimo. Toma unos 45 s.
+- `data/raw/` es lo que se baja tal cual y no se versiona; `data/processed/` es todo lo generado
+  —`real.json`, `fake.json`, `game_data.json` y `geo/`— y sí se versiona. Se puede borrar
+  `processed/` entero y rehacerlo; borrar `raw/` obliga a descargar de nuevo.
 - Los colores son tokens de `@theme` en `src/index.css`; el tema oscuro solo redefine esas variables
   en `:root[data-theme="dark"]`. No hace falta `dark:` en las utilidades.
 - Al tocar los filtros de `build_fake.py`, revisar a mano una muestra de inventados: los filtros son

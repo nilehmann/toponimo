@@ -15,7 +15,7 @@ import shapefile
 from shapely.geometry import MultiPolygon, Polygon, mapping, shape
 from shapely.ops import unary_union
 
-from common import DATA, RAW, norm
+from common import PROCESSED, RAW, norm
 from export import title
 
 # Tolerancia de simplificación en grados. 0,0003° son ~33 m, que deja unos 86 puntos por
@@ -32,7 +32,7 @@ DEC: int = 5
 # único que baja el peso es simplificar más. Los que no entran se vuelven a simplificar.
 MAX_BYTES: int = 20 * 1024
 
-OUT = DATA / "processed" / "geo"
+OUT = PROCESSED / "geo"
 
 
 def slug(s: str) -> str:
@@ -155,7 +155,7 @@ def main() -> None:
         if len(text) > biggest[0]:
             biggest = (len(text), key)
 
-    (DATA / "processed" / "index.json").write_text(json.dumps(index, ensure_ascii=False))
+    (PROCESSED / "index.json").write_text(json.dumps(index, ensure_ascii=False))
     print(f"{n} topónimos en {OUT}")
     print(f"  peso total      {total / 1e6:.1f} MB")
     print(f"  promedio        {total / n / 1024:.1f} KB  ({points / n:.0f} puntos)")

@@ -1,4 +1,4 @@
-"""Genera data/fake.json: nombres inventados que no existen en el Censo 2017.
+"""Genera data/processed/fake.json: nombres inventados que no existen en el Censo 2017.
 
 Todas las fuentes aleatorias comparten una semilla; reordenar las secciones cambia todos los resultados.
 """
@@ -8,13 +8,13 @@ import random
 import re
 from typing import Any, Optional
 
-from common import DATA, norm
+from common import PROCESSED, norm
 
 Real = dict[str, Any]
 Model = dict[str, collections.Counter[str]]
 
 random.seed(2026)
-data: dict[str, Any] = json.loads((DATA / "real.json").read_text())
+data: dict[str, Any] = json.loads((PROCESSED / "real.json").read_text())
 real: list[Real] = data["real"]
 all_norm: set[str] = set(data["all"])
 
@@ -215,4 +215,4 @@ while got < 90 and tries < 5000:  # hay menos candidatos que el objetivo; el top
     got += 1
 
 print(collections.Counter(f["kind"] for f in fakes))
-(DATA / "fake.json").write_text(json.dumps(fakes, ensure_ascii=False))
+(PROCESSED / "fake.json").write_text(json.dumps(fakes, ensure_ascii=False))

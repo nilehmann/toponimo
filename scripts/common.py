@@ -3,8 +3,11 @@ import unicodedata
 from pathlib import Path
 
 ROOT: Path = Path(__file__).resolve().parent.parent
-RAW: Path = ROOT / "data" / "raw"
 DATA: Path = ROOT / "data"
+# Lo que se baja tal cual de la fuente, y lo que generan los scripts a partir de eso. La
+# división es lo que deja borrar `processed/` entero y rehacerlo sin volver a descargar.
+RAW: Path = DATA / "raw"
+PROCESSED: Path = DATA / "processed"
 
 
 def norm(s: str) -> str:
