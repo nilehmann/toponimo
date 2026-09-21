@@ -46,7 +46,7 @@ export function Summary({ snapshot, game, me, onRestart, ref }: SummaryProps) {
               <span className="font-semibold">
                 <span className="mr-2 text-muted">{i + 1}.</span>
                 {snapshot.players[row.id]?.name ?? row.id}
-                {row.id === me && <span className="ml-1.5 text-sm font-normal text-muted">vos</span>}
+                {row.id === me && <span className="ml-1.5 text-sm font-normal text-muted">tú</span>}
               </span>
               <span className="shrink-0 font-extrabold text-sign">{row.score}</span>
             </li>

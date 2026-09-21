@@ -53,7 +53,7 @@ afterEach(() => {
 });
 
 describe("entrar a la sala", () => {
-  it("el welcome dice quién sos y trae el estado entero", async () => {
+  it("el welcome dice quién eres y trae el estado entero", async () => {
     const { host, join } = room();
     const ana = join("da", "Ana");
     await settle();

@@ -25,7 +25,7 @@ la siguiente no circula nada.
 **Automático solo donde la persona no tiene palanca.** Se reintenta solo lo que nadie puede
 arreglar mirando la pantalla: que no llegues a entrar, o que te pierdas un reveal. Para todo lo
 demás hay un botón de refrescar. Esto se juega en una mesa, con todos hablándose: cuando el host
-dice que faltan dos y vos ya respondiste, el problema está a la vista y alguien lo dice en voz alta.
+dice que faltan dos y tú ya respondiste, el problema está a la vista y alguien lo dice en voz alta.
 Un temporizador ahí no agrega nada que el grupo no vea antes.
 
 ## El estado
@@ -222,7 +222,7 @@ type HostMessage =
    cliente no puede mandar nada más hasta que el host le diga quién es.
 7. **Refrescar es volver a preguntar.** El cliente tiene un botón que manda `hello` y repinta
    todo con el `welcome` que llega. Si el host nunca recibió tu respuesta, el estado vuelve sin
-   ella y los botones quedan deseleccionados: respondés de nuevo con el mismo botón de siempre. No
+   ella y los botones quedan deseleccionados: respondes de nuevo con el mismo botón de siempre. No
    hay reenvío automático ni un control aparte para reintentar — el reenvío de una respuesta es,
    simplemente, volver a responder. Ese repintado es lo que distingue *descartar* de *aplicar*: un
    snapshot de versión **menor** no tiene ningún efecto, pero uno de la **misma** versión repinta

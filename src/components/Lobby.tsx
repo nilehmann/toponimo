@@ -58,7 +58,7 @@ export function Lobby({ snapshot, me, code, onStart }: LobbyProps) {
       {code && onStart && <Invite code={code} />}
 
       <h2 className="mt-8 text-base font-semibold text-muted">
-        {waiting === 1 ? "Estás vos solo" : `${waiting} en la sala`}
+        {waiting === 1 ? "Estás solo" : `${waiting} en la sala`}
       </h2>
       <Players snapshot={snapshot} game={null} me={me} />
 
