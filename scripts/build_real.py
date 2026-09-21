@@ -6,7 +6,7 @@ from typing import Any
 
 from dbfread import DBF
 
-from common import PROCESSED, RAW, norm
+from common import PROCESSED, RAW, ald_id, loc_id, norm, urb_id
 
 # Nombres administrativos o genéricos que no sirven como localidad.
 BAD = re.compile(
@@ -50,16 +50,19 @@ def main() -> None:
         p = pop.get(f"{l['comuna']}-{l['distrito']}-{l['loc_zon']}", 0)
         if keep(n) and MIN_POP <= p <= MAX_POP:
             seen.add(norm(n))
-            real.append({"name": n, "comuna": l["nom_comuna"], "region": l["nom_region"]})
+            real.append({"name": n, "comuna": l["nom_comuna"], "region": l["nom_region"],
+                         "id": loc_id(l["comuna"], l["distrito"], l["loc_zon"])})
 
     # Pueblos y aldeas no tienen población en estas tablas; entran sin filtro de tamaño.
-    extra = [(u["urbano"], u["nom_comuna"], u["nom_region"]) for u in urb if u["nom_categ"] == "PUEBLO"]
-    extra += [(a["nom_aldea"], a["nom_comuna"], a["nom_region"]) for a in ald]
-    for n, c, r in extra:
+    extra = [(u["urbano"], u["nom_comuna"], u["nom_region"], urb_id(u["comuna"], u["urbano"]))
+             for u in urb if u["nom_categ"] == "PUEBLO"]
+    extra += [(a["nom_aldea"], a["nom_comuna"], a["nom_region"], ald_id(a["comuna"], a["nom_aldea"]))
+              for a in ald]
+    for n, c, r, i in extra:
         n = n.strip()
         if keep(n):
             seen.add(norm(n))
-            real.append({"name": n, "comuna": c, "region": r})
+            real.append({"name": n, "comuna": c, "region": r, "id": i})
 
     print(len(real), "reales,", len(all_names), "nombres para verificar")
     out = {"real": real, "all": sorted(all_names)}

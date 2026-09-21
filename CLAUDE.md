@@ -10,10 +10,20 @@ referencia: si el código y ese documento no coinciden, hay que arreglar uno de 
 - `data/raw/` es lo que se baja tal cual y no se versiona; `data/processed/` es todo lo generado
   —`real.json`, `fake.json`, `game_data.json` y `geo/`— y sí se versiona. Se puede borrar
   `processed/` entero y rehacerlo; borrar `raw/` obliga a descargar de nuevo.
+- El id de la geometría lo arman `loc_id`, `urb_id` y `ald_id` de `common.py`, y los usan tanto
+  `build_geo.py` al escribir los contornos como `build_real.py` al elegir los topónimos. Nunca
+  buscar geometría por nombre: el 39% de los nombres jugables calza con más de una entidad del
+  censo. `export.py` verifica que el archivo exista y deja el id vacío si no, porque un 404 en
+  medio de una ronda no tiene arreglo.
 - Los colores son tokens de `@theme` en `src/index.css`; el tema oscuro solo redefine esas variables
   en `:root[data-theme="dark"]`. No hace falta `dark:` en las utilidades.
 - Al tocar los filtros de `build_fake.py`, revisar a mano una muestra de inventados: los filtros son
   heurísticos y los fallos típicos son palabras comunes o casi copias de nombres reales.
+
+- Al revelar un nombre real, `Place.tsx` reemplaza al letrero: mapa de Leaflet, contorno, pin y
+  ficha. Pide `geo/{id}.json` al propio sitio, que el plugin de `vite.config.ts` copia a `public/`.
+  Los tiles están en dos constantes al principio del archivo, clara y oscura; el tema resuelto lo
+  da `useDarkTheme()`, que mira `<html data-theme>` porque "system" no dice de qué color pedirlos.
 
 ## Cómo está armado el modo en grupo
 

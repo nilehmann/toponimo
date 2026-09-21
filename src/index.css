@@ -47,3 +47,29 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
+
+/* Leaflet trae su propia paleta y no sabe del tema. Son tres retoques para que el mapa no
+   destelle en blanco: el fondo que se ve mientras llegan los tiles, el crédito y los botones. */
+.leaflet-container {
+  background: var(--color-btn);
+  font-family: inherit;
+}
+
+.leaflet-container .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--color-btn) 85%, transparent);
+  color: var(--color-muted);
+}
+
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--color-muted);
+}
+
+.leaflet-container .leaflet-bar a {
+  background: var(--color-btn);
+  color: var(--color-ink);
+  border-bottom-color: var(--color-line);
+}
+
+.leaflet-container .leaflet-bar a:hover {
+  background: var(--color-btn-hover);
+}

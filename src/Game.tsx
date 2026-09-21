@@ -4,7 +4,8 @@ import { Choices } from "./components/Choices";
 import { Connection } from "./components/Connection";
 import { Lobby } from "./components/Lobby";
 import { Players } from "./components/Players";
-import { Reveal } from "./components/Reveal";
+import { Place } from "./components/Place";
+import { Detail, Next, Verdict } from "./components/Reveal";
 import { Sign } from "./components/Sign";
 import { Summary } from "./components/Summary";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -90,6 +91,9 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
   const selected = view.pending ?? mine ?? null;
   const round = game?.rounds[game.current];
   const toponym = round ? revealedToponym(round) : null;
+  // El letrero deja paso al mapa solo si el lugar existe y tiene contorno. Sin contorno el
+  // letrero se queda: es preferible a una ronda que no muestra nada.
+  const place = toponym?.real && toponym.geo ? toponym : null;
   const alone = snapshot.participants.length < 2;
   const late = isHost ? behind(snapshot, view) : undefined;
   const total = snapshot.participants.length;
@@ -129,29 +133,34 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
         />
       ) : (
         <section aria-live="polite">
-          <p className="mt-1.5 mb-4 max-w-lg text-muted">
-            Cada letrero indica una localidad rural de Chile, o un nombre inventado para
-            confundirte.
-          </p>
+          {!toponym && (
+            <p className="mt-1.5 mb-4 max-w-lg text-muted">
+              Cada letrero indica una localidad rural de Chile, o un nombre inventado para
+              confundirte.
+            </p>
+          )}
 
           <Ticks game={game} me={me} />
-          <Sign
-            name={round.toponym.name}
-            revealed={toponym !== null}
-            real={toponym?.real ?? false}
-            comuna={toponym?.real ? toponym.comuna : undefined}
-          />
+          {toponym && <Verdict toponym={toponym} guess={mine} />}
 
-          {toponym ? (
-            <Reveal
-              ref={nextRef}
-              toponym={toponym}
-              guess={mine}
-              last={game.current + 1 === ROUNDS}
-              onNext={isHost ? session.next : undefined}
-              upToDate={alone ? undefined : upToDate}
+          {place ? (
+            <Place
+              geo={place.geo}
+              name={place.name}
+              comuna={place.comuna}
+              region={place.region}
             />
           ) : (
+            <Sign
+              name={round.toponym.name}
+              revealed={toponym !== null}
+              real={toponym?.real ?? false}
+              comuna={toponym?.real ? toponym.comuna : undefined}
+            />
+          )}
+
+          {toponym && !place && <Detail toponym={toponym} />}
+          {!toponym && (
             <Choices onAnswer={session.answer} selected={selected} waiting={missing(snapshot, game)} />
           )}
 
@@ -171,6 +180,15 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
                 </button>
               )}
             </>
+          )}
+
+          {toponym && (
+            <Next
+              ref={nextRef}
+              last={game.current + 1 === ROUNDS}
+              onNext={isHost ? session.next : undefined}
+              upToDate={alone ? undefined : upToDate}
+            />
           )}
         </section>
       )}

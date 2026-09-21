@@ -2,4 +2,5 @@ node_modules/
 dist/
 data/raw/
 public/game_data.json
+public/geo/
 __pycache__/
