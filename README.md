@@ -28,7 +28,7 @@ Para regenerar los datos, que ya vienen versionados:
 
 ```sh
 pip install -r requirements.txt
-npm run data     # scripts/ -> data/*.json
+npm run data     # scripts/ -> data/processed/*.json
 ```
 
 ## Datos reales
@@ -64,8 +64,10 @@ Se descarta cualquiera que esté a distancia de Levenshtein menor que 2 de algun
 ## Detalles no obvios
 
 - `build_fake.py` usa semilla fija y tarda alrededor de un minuto. Cambiar el orden de sus secciones o cualquier filtro cambia todos los inventados.
-- `data/*.json` son generados: se edita `src/` y `scripts/`.
-- `export.py` escribe `data/game_data.json`; un plugin de `vite.config.ts` lo copia a `public/`, desde donde la app lo pide con `fetch`. Ese `public/game_data.json` es una copia y no se versiona.
+- `data/` se divide en dos: `raw/` es lo que se baja tal cual del censo y no se versiona;
+  `processed/` es todo lo que generan los scripts y sí se versiona. Se edita `src/` y `scripts/`,
+  nunca `processed/`.
+- `export.py` escribe `data/processed/game_data.json`; un plugin de `vite.config.ts` lo copia a `public/`, desde donde la app lo pide con `fetch`. Ese `public/game_data.json` es una copia y no se versiona.
 - `vite.config.ts` fija `base: '/toponimo/'`, la ruta del sitio en Pages. Si el repo cambia de nombre, hay que cambiarla.
 - El modo en grupo no tiene un campo de modo: jugar solo es una sala de un jugador que es su propio
   host y no se conecta a ninguna parte. Lo único que cambia es el transporte.

@@ -1,4 +1,4 @@
-"""Genera data/real.json: localidades reales jugables y el listado completo de nombres para verificar inventados."""
+"""Genera data/processed/real.json: localidades reales jugables y el listado completo de nombres para verificar inventados."""
 import collections
 import json
 import re
@@ -6,7 +6,7 @@ from typing import Any
 
 from dbfread import DBF
 
-from common import DATA, RAW, norm
+from common import PROCESSED, RAW, norm
 
 # Nombres administrativos o genéricos que no sirven como localidad.
 BAD = re.compile(
@@ -63,7 +63,8 @@ def main() -> None:
 
     print(len(real), "reales,", len(all_names), "nombres para verificar")
     out = {"real": real, "all": sorted(all_names)}
-    (DATA / "real.json").write_text(json.dumps(out, ensure_ascii=False))
+    PROCESSED.mkdir(parents=True, exist_ok=True)
+    (PROCESSED / "real.json").write_text(json.dumps(out, ensure_ascii=False))
 
 
 if __name__ == "__main__":

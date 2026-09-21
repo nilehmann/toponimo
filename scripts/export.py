@@ -1,9 +1,9 @@
-"""Genera data/game_data.json, el formato compacto que se incrusta en el HTML."""
+"""Genera data/processed/game_data.json, el formato compacto que se incrusta en el HTML."""
 import json
 import re
 from typing import Any, Optional
 
-from common import DATA
+from common import PROCESSED
 
 LOWER_AFTER_DE = {"la", "las", "los", "el"}
 
@@ -36,8 +36,8 @@ def form(n: str) -> Optional[str]:
 
 
 def main() -> None:
-    real: list[dict[str, Any]] = json.loads((DATA / "real.json").read_text())["real"]
-    fake: list[dict[str, str]] = json.loads((DATA / "fake.json").read_text())
+    real: list[dict[str, Any]] = json.loads((PROCESSED / "real.json").read_text())["real"]
+    fake: list[dict[str, str]] = json.loads((PROCESSED / "fake.json").read_text())
     regions: list[str] = []
     comunas: list[str] = []
 
@@ -55,7 +55,7 @@ def main() -> None:
             out["F"][f].append(title(x["name"]))
     out["regions"], out["comunas"] = regions, comunas
     print({k: {f: len(v) for f, v in out[k].items()} for k in "RF"})
-    (DATA / "game_data.json").write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
+    (PROCESSED / "game_data.json").write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
 
 
 if __name__ == "__main__":
