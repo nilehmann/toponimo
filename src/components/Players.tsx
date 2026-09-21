@@ -27,7 +27,7 @@ export function Players({ snapshot, game, me, behind }: PlayersProps) {
           <li key={id} className="flex items-baseline justify-between gap-3 border-b border-line py-2">
             <span className="font-semibold">
               {player.name}
-              {id === me && <span className="ml-1.5 text-sm font-normal text-muted">vos</span>}
+              {id === me && <span className="ml-1.5 text-sm font-normal text-muted">tú</span>}
               {id === snapshot.hostId && (
                 <span className="ml-1.5 text-sm font-normal text-muted">host</span>
               )}
