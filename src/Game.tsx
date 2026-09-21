@@ -75,7 +75,9 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [answering, session.answer]);
 
-  if (!snapshot) {
+  // Sin `me` no hay nada que tocar: el host todavía no dijo quién es esta persona, así que un
+  // tablero interactivo sería una pantalla de botones que no hacen nada.
+  if (!snapshot || me === null) {
     return (
       <Shell theme={theme} onLeave={session.controls.goHome}>
         <p className="mt-6 text-muted">Preguntándole al host quién eres…</p>

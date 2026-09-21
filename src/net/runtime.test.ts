@@ -560,3 +560,69 @@ describe("estar al día", () => {
     expect(host.getView().acked["2"]).toBeGreaterThanOrEqual(host.getView().awaited);
   });
 });
+
+describe("acuses perdidos", () => {
+  it("repite el acuse cuando el host reenvía la misma versión", async () => {
+    // El snapshot llega y el `ack` se pierde: el host reenvía, y si el cliente no repitiera el
+    // acuse por no traer nada nuevo, se rendiría y lo dejaría marcado atrasado para siempre.
+    let tirarAcks = false;
+    const { host, join } = room({ drop: (msg) => tirarAcks && msg.t === "ack" });
+    const ana = join("da", "Ana");
+    await settle();
+    host.start(fakeToponyms());
+    await settle();
+
+    tirarAcks = true;
+    host.reveal();
+    await settle();
+    expect(revealedToponym(gameOf(ana).rounds[0])).not.toBeNull();
+    expect(host.getView().acked["2"]).toBeLessThan(host.getView().awaited);
+
+    tirarAcks = false;
+    await vi.advanceTimersByTimeAsync(2000);
+    await settle();
+    expect(host.getView().acked["2"]).toBe(host.getView().awaited);
+
+    // Y no queda ningún reenvío dando vueltas.
+    const version = snapshotOf(host).version;
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(snapshotOf(host).version).toBe(version);
+  });
+
+  it("no se conforma con ver la partida si el host nunca la vio entrar", async () => {
+    let incomunicado = true;
+    const { host, join } = room({ drop: (msg) => incomunicado && msg.t === "hello" });
+    const ana = join("da", "Ana");
+    await vi.advanceTimersByTimeAsync(14_000);
+    expect(ana.getView().unreachable).toBe(true);
+
+    // La difusión le llega, pero el host no sabe que existe: sigue sin poder responder, y eso
+    // es justamente lo que el aviso dice.
+    incomunicado = false;
+    host.start(fakeToponyms());
+    await settle();
+    expect(ana.getView().snapshot).not.toBeNull();
+    expect(ana.getView().me).toBeNull();
+    expect(ana.getView().unreachable).toBe(true);
+
+    ana.refresh();
+    await settle();
+    expect(ana.getView().unreachable).toBe(false);
+    expect(meOf(ana)).toBe("2");
+  });
+
+  it("baja el aviso cuando la partida vuelve a avanzar para quien sí está en la sala", async () => {
+    let incomunicado = false;
+    const { host, join } = room({ drop: (msg) => incomunicado && msg.t === "hello" });
+    const ana = join("da", "Ana");
+    await settle();
+    incomunicado = true;
+    ana.refresh();
+    await vi.advanceTimersByTimeAsync(14_000);
+    expect(ana.getView().unreachable).toBe(true);
+
+    host.start(fakeToponyms());
+    await settle();
+    expect(ana.getView().unreachable).toBe(false);
+  });
+});

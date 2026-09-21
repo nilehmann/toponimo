@@ -257,7 +257,12 @@ suscriptor. Como el broker es público y sin garantías, un snapshot perdido dej
 en la ronda anterior **en silencio**, sin nada que lo despierte a preguntar.
 
 Por eso el cliente responde con `ack` de la versión que aplicó **cuando esa versión es un reveal o
-un avance de ronda**, y el host lleva la cuenta:
+un avance de ronda**, y repite el acuse si ve llegar de nuevo la versión que ya acusó —que es lo
+único que el host reenvía, así que verla otra vez significa que el acuse se perdió. Sin eso, un
+`ack` perdido es irrecuperable: el host gasta los tres intentos y deja marcado como atrasado a
+alguien que está mirando exactamente la misma pantalla que él.
+
+El host lleva la cuenta:
 
 ```ts
 /** Efímero, solo en el host. No se persiste. */
@@ -408,13 +413,16 @@ invitárselo, pero existir siempre es lo que permite que no haya ningún campo d
 
 | Quién | Qué guarda |
 |---|---|
-| Host | `SessionState` completo, más si la sala es compartida. Es la única copia autoritativa. |
+| Host | `SessionState` completo, en dos cajones: la sala y el solitario. Es la única copia autoritativa. |
 | Jugador | Solo su identidad. Nada de la partida. |
 
-Ese «si es compartida» no es parte del estado —ahí no hay ningún campo que diga en qué modo
-estamos— sino lo que hace falta al reabrir para saber qué transporte levantar y si hay a quién
-mostrarle el código. No se puede deducir del estado: una sala recién creada y una partida en
-solitario se ven igual, con un solo jugador que es su propio host.
+Que sean dos cajones y no uno no es un campo de modo en el estado —ahí no hay ninguno— sino lo que
+hace falta al reabrir para saber qué transporte levantar y si hay a quién mostrarle el código: en
+el estado una sala recién creada y una partida en solitario se ven idénticas, con un solo jugador
+que es su propio host.
+
+Y sobre todo, con un solo cajón tocar «Jugar solo» borraría la única copia autoritativa de una sala
+en curso, que es lo mismo que perderla: el botón está justo debajo del de retomarla.
 
 ```ts
 interface Identity {

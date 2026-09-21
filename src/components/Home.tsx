@@ -1,15 +1,15 @@
 import { type FormEvent, useState } from "react";
 
 import { phase } from "../game/session";
-import type { Identity, RoomCode } from "../game/types";
+import type { Identity, RoomCode, SessionState } from "../game/types";
 import { CODE_LENGTH, isValidCode, normalizeCode } from "../net/code";
 import type { SessionControls } from "../hooks/useSession";
-import type { HostRecord } from "../storage/session";
+import { SLOTS, type Saved, type Slot } from "../storage/session";
 import { BUTTON_GHOST, BUTTON_NEUTRAL, BUTTON_SIGN, BUTTON_WARN, INPUT } from "./ui";
 
 interface HomeProps {
   identity: Identity;
-  saved: HostRecord | null;
+  saved: Saved;
   /** El código que venía en el link o en el QR. */
   invited: RoomCode | null;
   controls: SessionControls;
@@ -42,13 +42,14 @@ function Field(props: {
   );
 }
 
-/** Qué dice el botón de retomar. Una sala guardada es la única copia autoritativa que existe. */
-function savedLabel(saved: HostRecord): string {
-  const where = phase(saved.state.game);
-  const what = saved.shared ? `la sala ${saved.state.code}` : "tu partida";
-  if (where === "lobby") return `Retomar ${what}`;
-  if (where === "summary") return `Volver al resumen de ${what}`;
-  return `Retomar ${what} en la ronda ${saved.state.game!.current + 1}`;
+/** Qué dice el botón de retomar. Lo guardado por el host es la única copia autoritativa que
+ *  existe de esa sala, así que conviene que se note qué se está por retomar. */
+function savedLabel(slot: Slot, state: SessionState): string {
+  const game = state.game;
+  const what = slot === "room" ? `la sala ${state.code}` : "tu partida";
+  if (game === null) return `Retomar ${what}`;
+  if (phase(game) === "summary") return `Volver al resumen de ${what}`;
+  return `Retomar ${what} en la ronda ${game.current + 1}`;
 }
 
 export function Home({ identity, saved, invited, controls }: HomeProps) {
@@ -62,7 +63,7 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
   const back =
     identity.lastRoomCode &&
     identity.name &&
-    identity.lastRoomCode !== saved?.state.code &&
+    identity.lastRoomCode !== saved.room?.code &&
     isValidCode(identity.lastRoomCode)
       ? identity.lastRoomCode
       : null;
@@ -85,16 +86,28 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
           lado.
         </p>
         <div className="mt-2 flex w-full max-w-xs flex-col gap-3">
-          {saved && (
-            <div className="flex flex-col gap-1">
-              <button type="button" onClick={controls.resume} className={BUTTON_NEUTRAL}>
-                {savedLabel(saved)}
-              </button>
-              <button type="button" onClick={controls.forgetSaved} className={BUTTON_GHOST}>
-                Olvidarla
-              </button>
-            </div>
-          )}
+          {SLOTS.map((slot) => {
+            const state = saved[slot];
+            if (!state) return null;
+            return (
+              <div key={slot} className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => controls.resume(slot)}
+                  className={BUTTON_NEUTRAL}
+                >
+                  {savedLabel(slot, state)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => controls.forgetSaved(slot)}
+                  className={BUTTON_GHOST}
+                >
+                  {slot === "room" ? "Olvidar la sala" : "Olvidar la partida"}
+                </button>
+              </div>
+            );
+          })}
           {back && (
             <button
               type="button"

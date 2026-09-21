@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createSession, reduce } from "../game/session";
 import { fakeToponyms } from "../game/fixtures";
 import { loadIdentity, rememberName, rememberRoom, saveIdentity } from "./identity";
-import { clearHostSession, loadHostSession, saveHostSession } from "./session";
+import { clearHostSession, loadHostSession, loadSaved, saveHostSession } from "./session";
 import { MemoryStorage } from "./memory";
 
 beforeEach(() => {
@@ -61,41 +61,57 @@ describe("sesión del host", () => {
 
   it("vuelve igual de como se guardó, con history y devices", () => {
     const saved = state();
-    saveHostSession({ shared: true, state: saved });
-    expect(loadHostSession()).toEqual({ shared: true, state: saved });
+    saveHostSession("room", saved);
+    expect(loadHostSession("room")).toEqual(saved);
   });
 
-  it("recuerda si la sala era compartida, que no se puede deducir del estado", () => {
+  it("la sala y el solitario no se pisan: jugar solo no borra una sala en curso", () => {
+    const sala = state();
     const solo = createSession("2345678", "d", "Vos", 10);
-    saveHostSession({ shared: false, state: solo });
-    expect(loadHostSession()?.shared).toBe(false);
-    saveHostSession({ shared: true, state: solo });
-    expect(loadHostSession()?.shared).toBe(true);
+    saveHostSession("room", sala);
+    saveHostSession("solo", solo);
+    expect(loadSaved()).toEqual({ room: sala, solo });
+    clearHostSession("solo");
+    expect(loadSaved()).toEqual({ room: sala, solo: null });
   });
 
   it("no hay nada guardado antes de la primera sala", () => {
-    expect(loadHostSession()).toBeNull();
+    expect(loadSaved()).toEqual({ room: null, solo: null });
   });
 
   it("descarta lo que no cumple los invariantes en vez de difundirlo", () => {
     const broken = state();
     broken.game!.rounds = broken.game!.rounds.slice(0, 3);
-    saveHostSession({ shared: true, state: broken });
-    expect(loadHostSession()).toBeNull();
+    saveHostSession("room", broken);
+    expect(loadHostSession("room")).toBeNull();
+  });
+
+  it("descarta un estado a medio guardar en vez de romper la pantalla", () => {
+    // Esto corre durante el primer render: una excepción acá deja la aplicación en blanco y sin
+    // nada que tocar para borrar lo que la causa.
+    const roto = state();
+    for (const parche of [
+      { ...roto, game: { number: 1 } },
+      { ...roto, game: { ...roto.game, rounds: [{ toponym: null, guesses: {} }] } },
+      { ...roto, game: { ...roto.game, rounds: "quince" } },
+      { ...roto, history: [{ number: 1 }] },
+      { ...roto, game: { ...roto.game, participants: null } },
+    ]) {
+      localStorage.setItem("toponimo:sala", JSON.stringify(parche));
+      expect(loadHostSession("room")).toBeNull();
+    }
   });
 
   it("descarta lo que no es un estado", () => {
-    localStorage.setItem("toponimo:host", "no es json");
-    expect(loadHostSession()).toBeNull();
-    localStorage.setItem("toponimo:host", '{"version":1}');
-    expect(loadHostSession()).toBeNull();
-    localStorage.setItem("toponimo:host", JSON.stringify(state()));
-    expect(loadHostSession()).toBeNull();
+    localStorage.setItem("toponimo:sala", "no es json");
+    expect(loadHostSession("room")).toBeNull();
+    localStorage.setItem("toponimo:sala", '{"version":1}');
+    expect(loadHostSession("room")).toBeNull();
   });
 
   it("se puede borrar", () => {
-    saveHostSession({ shared: true, state: state() });
-    clearHostSession();
-    expect(loadHostSession()).toBeNull();
+    saveHostSession("room", state());
+    clearHostSession("room");
+    expect(loadHostSession("room")).toBeNull();
   });
 });
