@@ -24,15 +24,21 @@ interface Feature {
 
 /** Los dos mapas base. Cambiar de proveedor es cambiar estas dos líneas y el crédito: el resto
  *  del componente no sabe de dónde vienen los tiles. Hacen falta los dos porque el juego tiene
- *  tema claro y oscuro, y un mapa claro sobre fondo oscuro encandila. */
+ *  tema claro y oscuro, y un mapa claro sobre fondo oscuro encandila.
+ *
+ *  Son de Stadia Maps y no llevan clave en la URL: el juego es un sitio estático, así que una
+ *  clave acá la lee cualquiera del bundle. Stadia autoriza por dominio, y el dominio donde se
+ *  publica hay que darlo de alta en su panel; desde localhost anda sin registrar nada. Si
+ *  algún día el mapa sale gris en producción, es eso y no el código. */
 const TILES: Record<"light" | "dark", string> = {
-  light: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-  dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+  light: "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png",
+  dark: "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
 };
 
 const CREDIT =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, ' +
-  '&copy; <a href="https://carto.com/attributions">CARTO</a>';
+  '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, ' +
+  '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, ' +
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
 /** El pin va como `divIcon` y no como icono de imagen para no arrastrar los PNG de Leaflet, que
  *  con un empaquetador terminan apuntando a una ruta que no existe. */
