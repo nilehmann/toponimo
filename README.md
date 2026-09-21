@@ -63,9 +63,15 @@ Al revelar un nombre real el letrero deja paso a `Place.tsx`: un mapa de Leaflet
 encima, el pin en el punto representativo, y debajo la ficha del lugar. Los nombres inventados no
 tienen mapa —no hay dónde ir— y se quedan con el letrero y su sello.
 
-El mapa base son tiles de CARTO sobre OpenStreetMap, en versión clara y oscura para seguir al tema.
-Cambiar de proveedor es cambiar las dos URL y el crédito al principio de `Place.tsx`. Un reveal
-pide media docena de tiles.
+El mapa base son tiles de Stadia Maps sobre OpenStreetMap —`alidade_smooth` y su gemela oscura—,
+en versión clara y oscura para seguir al tema. Cambiar de proveedor es cambiar las dos URL y el
+crédito al principio de `Place.tsx`. Un reveal pide media docena de tiles.
+
+No hay clave de API en el código, y no la habría aunque quisiéramos esconderla: el sitio es
+estático, así que cualquier clave del bundle es pública. Stadia autoriza por dominio, y el dominio
+donde se publica hay que darlo de alta en su panel —desde `localhost` anda sin registrar nada—.
+El proveedor anterior era CARTO, que desde agosto de 2026 marca con agua los tiles pedidos sin
+clave y está retirando el servicio ráster.
 
 El contorno se busca en `geo/{id}.json` del propio sitio, así que el plugin de `vite.config.ts`
 copia a `public/geo/` los 3.943 que una partida puede llegar a pedir —de los 12.089 que tiene

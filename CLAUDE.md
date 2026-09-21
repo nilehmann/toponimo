@@ -24,6 +24,9 @@ referencia: si el código y ese documento no coinciden, hay que arreglar uno de 
   ficha. Pide `geo/{id}.json` al propio sitio, que el plugin de `vite.config.ts` copia a `public/`.
   Los tiles están en dos constantes al principio del archivo, clara y oscura; el tema resuelto lo
   da `useDarkTheme()`, que mira `<html data-theme>` porque "system" no dice de qué color pedirlos.
+  Son de Stadia y van sin clave a propósito: en un sitio estático la clave sería pública igual, y
+  Stadia autoriza por dominio. Mapa gris en producción y no en `localhost` = falta dar de alta el
+  dominio, no es el código.
 
 ## Cómo está armado el modo en grupo
 
