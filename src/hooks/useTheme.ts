@@ -42,3 +42,19 @@ export function useTheme(): { pref: ThemePref; cycle: () => void } {
 
   return { pref, cycle };
 }
+
+/** El tema ya resuelto, leído de <html data-theme>. El mapa necesita esto y no la preferencia:
+ *  "system" no dice de qué color son los tiles que hay que pedir. Se mira el atributo en vez de
+ *  pasar el dato por props porque es justo lo que `useTheme` acaba de escribir ahí. */
+export function useDarkTheme(): boolean {
+  const [dark, setDark] = useState(() => document.documentElement.dataset.theme === "dark");
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => setDark(root.dataset.theme === "dark"));
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
+
+  return dark;
+}

@@ -120,6 +120,7 @@ describe("una ronda", () => {
       real: true,
       comuna: "Comuna",
       region: "Región",
+      geo: "",
     });
     expect(phase(gameOf(ana))).toBe("revealed");
   });

@@ -46,15 +46,30 @@ def main() -> None:
             lst.append(v)
         return lst.index(v)
 
+    # El id es el archivo de `geo/` que la app pide al revelar. Vacío significa «sin contorno»:
+    # la pantalla entonces no muestra mapa. Se verifica acá y no en el navegador porque un 404
+    # en medio de una ronda no tiene arreglo posible.
+    geo = PROCESSED / "geo"
+    if not geo.is_dir():
+        print("aviso: no hay data/processed/geo, ningún topónimo va a tener mapa")
+    missing = 0
+
     out: dict[str, Any] = {"R": {"a": [], "b": [], "c": []}, "F": {"a": [], "b": [], "c": []}}
     for r in real:
         if f := form(r["name"]):
-            out["R"][f].append([title(r["name"]), idx(comunas, title(r["comuna"])), idx(regions, title(r["region"]))])
+            has = (geo / f"{r['id']}.json").exists()
+            missing += 0 if has else 1
+            out["R"][f].append([
+                title(r["name"]),
+                idx(comunas, title(r["comuna"])),
+                idx(regions, title(r["region"])),
+                r["id"] if has else "",
+            ])
     for x in fake:
         if f := form(x["name"]):
             out["F"][f].append(title(x["name"]))
     out["regions"], out["comunas"] = regions, comunas
-    print({k: {f: len(v) for f, v in out[k].items()} for k in "RF"})
+    print({k: {f: len(v) for f, v in out[k].items()} for k in "RF"}, f"sin contorno: {missing}")
     (PROCESSED / "game_data.json").write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
 
 

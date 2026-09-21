@@ -40,15 +40,36 @@ Se usan localidades rurales de 40 a 3.000 habitantes (suma de sus entidades), m�
 ## Geometría
 
 `download.py` baja además los `.shp` de las tres capas (79 MB, contra 0,6 MB de solo los `.dbf`) y
-`build_geo.py` escribe un GeoJSON Feature por topónimo en `data/processed/geo/{id}.json`, con el
-contorno del lugar y un punto garantizado dentro para el pin. Los 4.431 topónimos jugables tienen
-geometría; la mediana pesa 2 KB y el máximo 30 KB.
+`build_geo.py` escribe un GeoJSON Feature por topónimo en `data/processed/geo/{id}.json`: el
+contorno del lugar, un punto garantizado dentro para el pin, y en `properties` lo que muestra la
+ficha —habitantes cuando el censo los trae, y a cuántos kilómetros queda la capital regional o
+provincial más cercana—. Los 3.943 topónimos jugables tienen geometría; la mediana pesa 2 KB y el
+máximo 30 KB.
+
+Cada fila de `game_data.json` lleva el id de su contorno. Va el id y no el nombre porque los
+nombres se repiten entre comunas —hay 30 «El Manzano»— y el 39% de los nombres jugables calza con
+más de una entidad del censo: buscar por nombre mostraba el pueblo equivocado. Los ids los arman
+las funciones de `common.py` que comparten `build_geo.py` y `build_real.py`.
 
 Las aldeas vienen partidas en manzanas censales —La Tirana son 181— y se unen con `shapely`. Los
 polígonos que se pasan de 20 KB se vuelven a simplificar: son costas de fiordo de Aysén y
 Magallanes, un solo borde continuo de miles de vértices que a escala de pantalla no se distingue.
 
 Esto no corre en `npm run data`: se hace a mano cuando hace falta.
+
+## Mapa
+
+Al revelar un nombre real el letrero deja paso a `Place.tsx`: un mapa de Leaflet con el contorno
+encima, el pin en el punto representativo, y debajo la ficha del lugar. Los nombres inventados no
+tienen mapa —no hay dónde ir— y se quedan con el letrero y su sello.
+
+El mapa base son tiles de CARTO sobre OpenStreetMap, en versión clara y oscura para seguir al tema.
+Cambiar de proveedor es cambiar las dos URL y el crédito al principio de `Place.tsx`. Un reveal
+pide media docena de tiles.
+
+El contorno se busca en `geo/{id}.json` del propio sitio, así que el plugin de `vite.config.ts`
+copia a `public/geo/` los 3.943 que una partida puede llegar a pedir —de los 12.089 que tiene
+`data/processed/geo/`— y son unos 11 MB del sitio publicado.
 
 ## Inventados
 
@@ -67,7 +88,10 @@ Se descarta cualquiera que esté a distancia de Levenshtein menor que 2 de algun
 - `data/` se divide en dos: `raw/` es lo que se baja tal cual del censo y no se versiona;
   `processed/` es todo lo que generan los scripts y sí se versiona. Se edita `src/` y `scripts/`,
   nunca `processed/`.
-- `export.py` escribe `data/processed/game_data.json`; un plugin de `vite.config.ts` lo copia a `public/`, desde donde la app lo pide con `fetch`. Ese `public/game_data.json` es una copia y no se versiona.
+- `export.py` escribe `data/processed/game_data.json`; un plugin de `vite.config.ts` lo copia a
+  `public/` junto con los contornos, desde donde la app los pide con `fetch`. Esas copias no se
+  versionan. El deploy de Pages corre solo `npm ci && npm run build`, sin Python: por eso
+  `data/processed/` sí se versiona.
 - `vite.config.ts` fija `base: '/toponimo/'`, la ruta del sitio en Pages. Si el repo cambia de nombre, hay que cambiarla.
 - El modo en grupo no tiene un campo de modo: jugar solo es una sala de un jugador que es su propio
   host y no se conecta a ninguna parte. Lo único que cambia es el transporte.

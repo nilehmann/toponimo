@@ -36,7 +36,12 @@ function isToponym(value: unknown, revealed: boolean): boolean {
   if (!isObject(value) || typeof value.name !== "string") return false;
   if (!revealed) return true;
   if (value.real === false) return true;
-  return value.real === true && typeof value.comuna === "string" && typeof value.region === "string";
+  return (
+    value.real === true &&
+    typeof value.comuna === "string" &&
+    typeof value.region === "string" &&
+    typeof value.geo === "string"
+  );
 }
 
 function isRound(value: unknown, revealed: boolean): value is Round | PublicRound {

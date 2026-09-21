@@ -1,21 +1,24 @@
 """Genera data/processed/geo/{id}.json: un GeoJSON Feature por topónimo, listo para servir.
 
-Cada archivo es lo que la app pide al revelar un letrero real: el contorno del lugar y un punto
-para el pin. Es GeoJSON y no un formato propio porque Leaflet lo consume tal cual, sin traducción.
+Cada archivo es lo que la app pide al revelar un letrero real: el contorno del lugar, un punto
+para el pin y los datos de la ficha. Es GeoJSON y no un formato propio porque Leaflet lo consume
+tal cual, sin traducción.
 
 Se procesan las tres capas de las que salen los topónimos jugables, incluso las que los filtros de
 `build_real.py` después descartan: así cambiar un filtro no obliga a reprocesar los 93 MB de
 geometría, que es lo caro. Las 10.863 localidades tardan unos segundos; la descarga tarda más.
 """
 import json
-from collections import defaultdict
+import math
+from collections import Counter, defaultdict
 from typing import Any, Iterator, Optional
 
 import shapefile
+from dbfread import DBF
 from shapely.geometry import MultiPolygon, Polygon, mapping, shape
 from shapely.ops import unary_union
 
-from common import PROCESSED, RAW, norm
+from common import PROCESSED, RAW, ald_id, loc_id, norm, urb_id
 from export import title
 
 # Tolerancia de simplificación en grados. 0,0003° son ~33 m, que deja unos 86 puntos por
@@ -35,11 +38,6 @@ MAX_BYTES: int = 20 * 1024
 OUT = PROCESSED / "geo"
 
 
-def slug(s: str) -> str:
-    """Parte de nombre apta para un nombre de archivo y una URL."""
-    return norm(s).replace("Ñ", "N").lower().replace(" ", "-")
-
-
 def clean(geom: Any) -> Optional[Any]:
     """Arregla polígonos que se cruzan a sí mismos, que el censo trae de a ratos."""
     if geom.is_empty:
@@ -57,16 +55,52 @@ def round_coords(obj: Any) -> Any:
     return obj
 
 
+def population() -> Counter[str]:
+    """Habitantes por localidad rural, sumando las entidades que la componen.
+
+    Solo existe para la capa de localidades: en estas tablas los pueblos y las aldeas no traen
+    población, y la ficha simplemente no muestra la línea cuando falta.
+    """
+    pop: Counter[str] = Counter()
+    for e in DBF(RAW / "entidades_indeterminadas_16r.dbf", encoding="utf-8"):
+        pop[loc_id(e["comuna"], e["distrito"], e["loc_zon"])] += e["total_pers"] or 0
+    return pop
+
+
+def capitals() -> list[tuple[str, float, float]]:
+    """Capitales regionales y provinciales, para decir a qué distancia queda el lugar.
+
+    «A 18 km de Curicó» ubica a cualquiera; un par de coordenadas no. Son 56 nombres que todo
+    el mundo conoce, que es justo lo que se necesita de una referencia.
+    """
+    urb = shapefile.Reader(str(RAW / "limites_urbanos_16r"))
+    out: list[tuple[str, float, float]] = []
+    for r, s in zip(urb.records(), urb.shapes()):
+        if r["tipo"] in ("CAPITAL REGIONAL", "CAPITAL PROVINCIAL"):
+            c = shape(s.__geo_interface__).centroid
+            out.append((title(r["urbano"].strip()), c.x, c.y))
+    return out
+
+
+def km(lon_a: float, lat_a: float, lon_b: float, lat_b: float) -> float:
+    r, p = 6371.0, math.pi / 180
+    h = (
+        math.sin((lat_b - lat_a) * p / 2) ** 2
+        + math.cos(lat_a * p) * math.cos(lat_b * p) * math.sin((lon_b - lon_a) * p / 2) ** 2
+    )
+    return 2 * r * math.asin(math.sqrt(h))
+
+
 def entities() -> Iterator[tuple[str, str, str, str, Any]]:
     """(id, nombre, comuna, región, geometría) de las tres capas."""
     loc = shapefile.Reader(str(RAW / "localidades_16r"))
     for r, s in zip(loc.records(), loc.shapes()):
-        key = f"l-{r['comuna']}-{r['distrito']}-{r['loc_zon']}"
+        key = loc_id(r["comuna"], r["distrito"], r["loc_zon"])
         yield key, r["nom_locali"], r["nom_comuna"], r["nom_region"], shape(s.__geo_interface__)
 
     urb = shapefile.Reader(str(RAW / "limites_urbanos_16r"))
     for r, s in zip(urb.records(), urb.shapes()):
-        key = f"u-{r['comuna']}-{slug(r['urbano'])}"
+        key = urb_id(r["comuna"], r["urbano"])
         yield key, r["urbano"], r["nom_comuna"], r["nom_region"], shape(s.__geo_interface__)
 
     # Una aldea son muchas manzanas censales sueltas —La Tirana tiene 181—, así que hay que
@@ -79,12 +113,12 @@ def entities() -> Iterator[tuple[str, str, str, str, Any]]:
         k = (r["comuna"], r["nom_aldea"])
         groups[k].append(shape(s.__geo_interface__))
         meta[k] = (r["nom_aldea"], r["nom_comuna"], r["nom_region"])
-    for (comuna, _), parts in groups.items():
-        name, nom_comuna, region = meta[(comuna, _)]
-        pieces = [p for p in (clean(g) for g in parts) if p is not None]
+    for comuna, aldea in groups:
+        name, nom_comuna, region = meta[(comuna, aldea)]
+        pieces = [p for p in (clean(g) for g in groups[(comuna, aldea)]) if p is not None]
         if not pieces:
             continue
-        yield f"a-{comuna}-{slug(name)}", name, nom_comuna, region, unary_union(pieces)
+        yield ald_id(comuna, name), name, nom_comuna, region, unary_union(pieces)
 
 
 def count_points(geom: Any) -> int:
@@ -93,7 +127,7 @@ def count_points(geom: Any) -> int:
     return sum(len(ring) for poly in polys for ring in poly)
 
 
-def render(key: str, name: str, comuna: str, region: str, geom: Any) -> Optional[tuple[str, Any, int]]:
+def render(props: dict[str, Any], geom: Any, refs: list[tuple[str, float, float]]) -> Optional[tuple[str, Any, int]]:
     """Simplifica subiendo la tolerancia hasta entrar en MAX_BYTES.
 
     Devuelve (json, geometría, intentos). No siempre se logra: una aldea de 181 manzanas
@@ -109,15 +143,12 @@ def render(key: str, name: str, comuna: str, region: str, geom: Any) -> Optional
         # Garantizado dentro del polígono, a diferencia del centroide de área, que en una
         # localidad partida por un río o con islas puede caer en el agua o en la vecina.
         pt = simple.representative_point()
+        if "ref" not in props:
+            near = min(refs, key=lambda c: km(pt.x, pt.y, c[1], c[2]))
+            props["ref"], props["km"] = near[0], round(km(pt.x, pt.y, near[1], near[2]))
         feature: dict[str, Any] = {
             "type": "Feature",
-            "properties": {
-                "id": key,
-                "name": title(name.strip()),
-                "comuna": title(comuna),
-                "region": title(region),
-                "point": [round(pt.x, DEC), round(pt.y, DEC)],
-            },
+            "properties": {**props, "point": [round(pt.x, DEC), round(pt.y, DEC)]},
             "geometry": round_coords(mapping(simple)),
         }
         text = json.dumps(feature, ensure_ascii=False, separators=(",", ":"))
@@ -132,21 +163,31 @@ def main() -> None:
     for old in OUT.glob("*.json"):
         old.unlink()
 
+    pop = population()
+    refs = capitals()
     n = total = points = capped = over = 0
     biggest: tuple[int, str] = (0, "")
-    index: dict[str, str] = {}
 
     for key, name, comuna, region, geom in entities():
         g = clean(geom)
         if g is None:
             continue
-        out = render(key, name, comuna, region, g)
+        props: dict[str, Any] = {
+            "id": key,
+            "name": title(name.strip()),
+            "comuna": title(comuna),
+            "region": title(region),
+        }
+        # La capital más cercana no puede ser el lugar mismo: dejaría «A 0 km de Rancagua».
+        near = [c for c in refs if norm(c[0]) != norm(name)]
+        if pop.get(key):
+            props["pop"] = pop[key]
+        out = render(props, g, near)
         if out is None:
             continue
         text, simple, attempts = out
 
         (OUT / f"{key}.json").write_text(text)
-        index[norm(name)] = key
         n += 1
         total += len(text)
         points += count_points(simple)
@@ -155,11 +196,11 @@ def main() -> None:
         if len(text) > biggest[0]:
             biggest = (len(text), key)
 
-    (PROCESSED / "index.json").write_text(json.dumps(index, ensure_ascii=False))
     print(f"{n} topónimos en {OUT}")
     print(f"  peso total      {total / 1e6:.1f} MB")
     print(f"  promedio        {total / n / 1024:.1f} KB  ({points / n:.0f} puntos)")
     print(f"  el más pesado   {biggest[1]} con {biggest[0] / 1024:.1f} KB")
+    print(f"  con población   {sum(1 for k in pop if pop[k])}")
     print(f"  simplificados de más para entrar en {MAX_BYTES // 1024} KB: {capped}")
     print(f"  no lograron entrar igual: {over}")
 

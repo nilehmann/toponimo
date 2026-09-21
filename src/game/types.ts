@@ -1,8 +1,10 @@
 /** Estructura del nombre: a = una palabra, b = dos palabras, c = artículo + palabra. */
 export type Form = "a" | "b" | "c";
 
-/** Fila compacta de `game_data.json`: los índices apuntan a `comunas` y `regions`. */
-export type RealRow = [name: string, comuna: number, region: number];
+/** Fila compacta de `game_data.json`: los índices apuntan a `comunas` y `regions`, y `geo` nombra
+ *  el archivo de `geo/` con el contorno del lugar. Va el archivo y no el nombre porque los nombres
+ *  se repiten entre comunas —hay 30 «El Manzano»— y buscar por nombre mostraría otro pueblo. */
+export type RealRow = [name: string, comuna: number, region: number, geo: string];
 
 export interface GameData {
   R: Record<Form, RealRow[]>;
@@ -27,7 +29,7 @@ export type Guess = boolean;
 
 /** El contenido del letrero. Lo produce el sorteo desde `game_data.json`. */
 export type Toponym =
-  | { name: string; real: true; comuna: string; region: string }
+  | { name: string; real: true; comuna: string; region: string; geo: string }
   | { name: string; real: false };
 
 /** El letrero mientras sigue tapado: viaja sin su `real`. */

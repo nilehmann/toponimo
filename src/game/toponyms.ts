@@ -40,8 +40,8 @@ export function buildToponyms(data: GameData): Toponym[] {
     while (!toponym || used.has(toponym.name)) {
       const f = pickForm(data);
       if (real) {
-        const [name, c, r] = pick(data.R[f]);
-        toponym = { name, real: true, comuna: data.comunas[c], region: data.regions[r] };
+        const [name, c, r, geo] = pick(data.R[f]);
+        toponym = { name, real: true, comuna: data.comunas[c], region: data.regions[r], geo };
       } else {
         toponym = { name: pick(data.F[f]), real: false };
       }
