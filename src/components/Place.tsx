@@ -3,8 +3,6 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useRef, useState } from "react";
 
-import { useDarkTheme } from "../hooks/useTheme";
-
 /** Lo que escribe `build_geo.py` en data/processed/geo/{id}.json. Es GeoJSON para que Leaflet lo
  *  dibuje sin traducción, con los datos de la ficha colgando de `properties`. */
 interface Feature {
@@ -22,23 +20,16 @@ interface Feature {
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon;
 }
 
-/** Los dos mapas base. Cambiar de proveedor es cambiar estas dos líneas y el crédito: el resto
- *  del componente no sabe de dónde vienen los tiles. Hacen falta los dos porque el juego tiene
- *  tema claro y oscuro, y un mapa claro sobre fondo oscuro encandila.
+/** El mapa base. Cambiar de proveedor es cambiar esta línea y el crédito: el resto del
+ *  componente no sabe de dónde vienen los tiles.
  *
- *  Son de Stadia Maps y no llevan clave en la URL: el juego es un sitio estático, así que una
- *  clave acá la lee cualquiera del bundle. Stadia autoriza por dominio, y el dominio donde se
- *  publica hay que darlo de alta en su panel; desde localhost anda sin registrar nada. Si
- *  algún día el mapa sale gris en producción, es eso y no el código. */
-const TILES: Record<"light" | "dark", string> = {
-  light: "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png",
-  dark: "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
-};
+ *  Es el estilo estándar de OpenStreetMap, sin clave y sin cuenta. Hay uno solo, así que el mapa
+ *  se ve igual con los dos temas, y así queda a propósito: teñirlo por CSS para que siga
+ *  al tema oscuro es lo que hay que hacer con un estilo solo, y se decidió que no. El proveedor
+ *  anterior era CARTO, que desde agosto de 2026 marca con agua los tiles pedidos sin clave. */
+const TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
-const CREDIT =
-  '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, ' +
-  '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a>, ' +
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+const CREDIT = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
 /** El pin va como `divIcon` y no como icono de imagen para no arrastrar los PNG de Leaflet, que
  *  con un empaquetador terminan apuntando a una ruta que no existe. */
@@ -82,8 +73,6 @@ export function Place({ geo, name, comuna, region }: PlaceProps) {
   const [place, setPlace] = useState<Feature | null>(null);
   const [failed, setFailed] = useState(false);
   const node = useRef<HTMLDivElement>(null);
-  const tiles = useRef<L.TileLayer | null>(null);
-  const dark = useDarkTheme();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -106,10 +95,7 @@ export function Place({ geo, name, comuna, region }: PlaceProps) {
     // Sin rueda: el mapa vive dentro de una página que se desplaza, y si capturara la rueda
     // bajar la pantalla haría zoom. Quedan el arrastre, el pellizco y los botones.
     const m = L.map(node.current, { scrollWheelZoom: false, attributionControl: true });
-    tiles.current = L.tileLayer(TILES[dark ? "dark" : "light"], {
-      attribution: CREDIT,
-      maxZoom: 19,
-    }).addTo(m);
+    L.tileLayer(TILES, { attribution: CREDIT, maxZoom: 19 }).addTo(m);
     const shape = L.geoJSON(place.geometry, {
       // Las clases ganan sobre los atributos que pone Leaflet, así el contorno sigue al tema.
       style: { className: "fill-ok stroke-ok", weight: 2, opacity: 1, fillOpacity: 0.2 },
@@ -119,15 +105,8 @@ export function Place({ geo, name, comuna, region }: PlaceProps) {
     L.marker([lat, lon], { icon: PIN, keyboard: false, alt: place.properties.name }).addTo(m);
     return () => {
       m.remove();
-      tiles.current = null;
     };
-    // `dark` queda fuera a propósito, y lo atiende el efecto de abajo: rehacer el mapa entero
-    // al cambiar de tema perdería el encuadre que la persona eligió arrastrando.
   }, [place]);
-
-  useEffect(() => {
-    tiles.current?.setUrl(TILES[dark ? "dark" : "light"]);
-  }, [dark]);
 
   const pop = place?.properties.pop;
   return (

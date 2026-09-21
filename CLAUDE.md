@@ -22,11 +22,11 @@ referencia: si el código y ese documento no coinciden, hay que arreglar uno de 
 
 - Al revelar un nombre real, `Place.tsx` reemplaza al letrero: mapa de Leaflet, contorno, pin y
   ficha. Pide `geo/{id}.json` al propio sitio, que el plugin de `vite.config.ts` copia a `public/`.
-  Los tiles están en dos constantes al principio del archivo, clara y oscura; el tema resuelto lo
-  da `useDarkTheme()`, que mira `<html data-theme>` porque "system" no dice de qué color pedirlos.
-  Son de Stadia y van sin clave a propósito: en un sitio estático la clave sería pública igual, y
-  Stadia autoriza por dominio. Mapa gris en producción y no en `localhost` = falta dar de alta el
-  dominio, no es el código.
+  Los tiles están en una constante al principio del archivo: el estilo estándar de OpenStreetMap,
+  sin clave y sin cuenta, porque en un sitio estático cualquier clave del bundle es pública. Hay un
+  solo estilo y el mapa no sigue al tema; teñirlo por CSS se descartó a propósito. Si se vuelve a
+  un proveedor con variante oscura, el tema resuelto hay que leerlo de `<html data-theme>`: la
+  preferencia no sirve, porque "system" no dice de qué color pedir los tiles.
 
 ## Cómo está armado el modo en grupo
 
