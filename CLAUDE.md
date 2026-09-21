@@ -23,8 +23,9 @@ referencia: si el código y ese documento no coinciden, hay que arreglar uno de 
   `version`: una respuesta ajena también sube la versión y nadie la acusa.
 - Un snapshot de versión **menor** se descarta; uno de la **misma** versión repinta igual. Eso es lo
   que hace que refrescar sirva cuando el host no tiene nada nuevo que contar, que es justo el caso
-  para el que existe ese botón. Y si esa versión es la que ya acusamos, se repite el acuse: el host
-  solo reenvía lo que está esperando, así que verlo de nuevo significa que el acuse se perdió.
+  para el que existe ese botón. Y todo lo que llega por el canal personal se acusa siempre: el host
+  solo manda ahí lo que está reenviando, así que verlo ahí ya significa que le falta un acuse. Sin
+  esa regla un `ack` perdido no se recupera nunca, porque el reenvío no le cambia nada al cliente.
 - `unreachable` es «no alcanzo al host», no «no me llega nada». Ver la partida avanzar lo desmiente
   solo si ya sabemos quiénes somos; sin `PlayerId` lo que falta es justamente que nuestros mensajes
   lleguen, y ahí la pantalla no ofrece tablero porque no habría nada que tocar.

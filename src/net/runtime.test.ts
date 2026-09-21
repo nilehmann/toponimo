@@ -562,6 +562,34 @@ describe("estar al día", () => {
 });
 
 describe("acuses perdidos", () => {
+  it("acusa el reenvío aunque la versión haya seguido subiendo mientras tanto", async () => {
+    // El `ack` del reveal se pierde y entre medio alguien se va, así que el reenvío llega con
+    // una versión más nueva y sin nada que cambie la pantalla. Si el cliente esperara a que la
+    // pantalla cambie, el host se rendiría dando por atrasado a quien está mirando lo mismo.
+    let tirarAcks = false;
+    const { host, join } = room({ drop: (msg) => tirarAcks && msg.t === "ack" });
+    const ana = join("da", "Ana");
+    const beto = join("db", "Beto");
+    await settle();
+    host.start(fakeToponyms());
+    await settle();
+
+    tirarAcks = true;
+    host.reveal();
+    await settle();
+    const reveal = snapshotOf(host).version;
+
+    tirarAcks = false;
+    beto.leave();
+    await settle();
+    expect(snapshotOf(host).version).toBeGreaterThan(reveal);
+
+    await vi.advanceTimersByTimeAsync(2000);
+    await settle();
+    expect(host.getView().acked["2"]).toBeGreaterThanOrEqual(host.getView().awaited);
+    expect(revealedToponym(gameOf(ana).rounds[0])).not.toBeNull();
+  });
+
   it("repite el acuse cuando el host reenvía la misma versión", async () => {
     // El snapshot llega y el `ack` se pierde: el host reenvía, y si el cliente no repitiera el
     // acuse por no traer nada nuevo, se rendiría y lo dejaría marcado atrasado para siempre.
