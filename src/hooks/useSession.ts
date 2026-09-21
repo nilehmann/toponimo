@@ -205,6 +205,9 @@ export function useSession(data: GameData): Session {
         attempt.current += 1;
         // El jugador avisa que se va; el host nunca se saca a sí mismo de su propia sala.
         liveRef.current?.runtime.leave();
+        // Salir a mano es terminar con esa sala: cerrar la app no, y por eso ahí sí se ofrece
+        // volver. El host no la olvida, que su estado es la única copia autoritativa.
+        if (liveRef.current?.role === "guest") setIdentity(rememberRoom(identity, null));
         setLive(null);
         setStatus({ status: "home" });
         setSaved(loadHostSession());

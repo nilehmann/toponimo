@@ -1,7 +1,9 @@
 import type { Identity, RoomCode } from "../game/types";
-import { readJson, writeJson } from "./local";
+import { isLocal } from "../net/open";
+import { readJson, scopeForTesting, writeJson } from "./local";
 
 const KEY = "toponimo:identity";
+const scope = () => scopeForTesting(isLocal());
 
 /** `crypto.randomUUID` pide contexto seguro; en uno inseguro se arma igual con bytes al azar,
  *  porque lo único que se le pide al DeviceId es no repetirse. */
@@ -24,15 +26,15 @@ function isIdentity(value: unknown): value is Identity {
 
 /** El DeviceId se sortea la primera vez y nunca se regenera: es lo que reconoce a quien vuelve. */
 export function loadIdentity(): Identity {
-  const stored = readJson<unknown>(KEY);
+  const stored = readJson<unknown>(KEY, scope());
   if (isIdentity(stored)) return stored;
   const identity: Identity = { deviceId: newDeviceId(), name: "", lastRoomCode: null };
-  writeJson(KEY, identity);
+  writeJson(KEY, identity, scope());
   return identity;
 }
 
 export function saveIdentity(identity: Identity): Identity {
-  writeJson(KEY, identity);
+  writeJson(KEY, identity, scope());
   return identity;
 }
 

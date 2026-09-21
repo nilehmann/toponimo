@@ -56,6 +56,17 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
   const [name, setName] = useState(identity.name);
   const [code, setCode] = useState(invited ?? identity.lastRoomCode ?? "");
 
+  /** Quien cerró la app siendo jugador vuelve con un toque: su DeviceId y su nombre siguen
+   *  guardados, y el host lo reconoce por el `hello`. La sala que hosteaba uno mismo no entra
+   *  acá: esa se retoma con su propio estado, que es la única copia autoritativa. */
+  const back =
+    identity.lastRoomCode &&
+    identity.name &&
+    identity.lastRoomCode !== saved?.state.code &&
+    isValidCode(identity.lastRoomCode)
+      ? identity.lastRoomCode
+      : null;
+
   const trimmed = name.trim();
   const clean = normalizeCode(code);
 
@@ -83,6 +94,15 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
                 Olvidarla
               </button>
             </div>
+          )}
+          {back && (
+            <button
+              type="button"
+              onClick={() => controls.joinRoom(back, identity.name)}
+              className={BUTTON_NEUTRAL}
+            >
+              Volver a la sala {back}
+            </button>
           )}
           <button type="button" onClick={controls.playSolo} className={BUTTON_SIGN}>
             Jugar solo

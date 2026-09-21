@@ -8,6 +8,7 @@ export type Role = "host" | "client";
 /** Para probar sin broker: `?transporte=local` cambia MQTT por un BroadcastChannel, que no sale
  *  del navegador pero sí llega a otra pestaña de la misma máquina. */
 export function isLocal(): boolean {
+  if (typeof location === "undefined") return false;
   return new URLSearchParams(location.search).get("transporte") === "local";
 }
 
