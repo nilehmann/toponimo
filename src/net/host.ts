@@ -41,7 +41,7 @@ export function createHost({ state, transport, onChange, now = Date.now }: HostO
    *  nuevo sirve igual o mejor. */
   function armRetries(version: number) {
     cancelRetries();
-    for (const id of state.game?.participants ?? []) {
+    for (const id of state.participants) {
       if (id === state.hostId || (acked[id] ?? 0) >= version) continue;
       const cancel = backoff(
         () => transport.sendTo(id, { t: "snapshot", state: project(state) }),
@@ -136,8 +136,17 @@ export function createHost({ state, transport, onChange, now = Date.now }: HostO
     reveal: () => void apply({ type: "reveal" }),
     next: () => void apply({ type: "next", at: now() }),
     start: (toponyms: Toponym[]) => void apply({ type: "start", toponyms }),
-    /** El host ya tiene la verdad: refrescar es repetirla, por si alguien quedó atrasado. */
-    refresh: () => transport.broadcast({ t: "snapshot", state: project(state) }),
+    /** El host ya tiene la verdad: refrescar es repetirla, por si alguien quedó atrasado. La
+     *  cuenta de acuses es efímera, así que después de reabrir la aplicación no sabe quién
+     *  sigue ahí; volver a pedirlos es lo que evita que la lista diga que están todos al día
+     *  cuando en realidad no acusó nadie. */
+    refresh() {
+      transport.broadcast({ t: "snapshot", state: project(state) });
+      if (!state.game) return;
+      awaited = state.version;
+      armRetries(state.version);
+      store.notify();
+    },
     leave: stop,
     stop,
   };

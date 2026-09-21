@@ -20,19 +20,19 @@ import type { SessionView } from "./net/runtime";
 /** Quiénes no acusaron el último cambio que había que acusar. El host cuenta siempre al día:
  *  es de donde sale la verdad. Un ack prueba que llegó, no que siga ahí, así que esto es
  *  información y no un permiso: los botones de revelar y avanzar nunca se bloquean. */
-function behind(snapshot: Snapshot, game: AnyGame, view: SessionView): Set<PlayerId> {
+function behind(snapshot: Snapshot, view: SessionView): Set<PlayerId> {
   if (view.awaited === 0) return new Set();
   return new Set(
-    game.participants.filter(
+    snapshot.participants.filter(
       (id) => id !== snapshot.hostId && (view.acked[id] ?? 0) < view.awaited,
     ),
   );
 }
 
-function missing(game: AnyGame): string | null {
-  if (game.participants.length < 2) return null;
+function missing(snapshot: Snapshot, game: AnyGame): string | null {
+  if (snapshot.participants.length < 2) return null;
   const done = answered(game);
-  const left = game.participants.filter((id) => !done.has(id)).length;
+  const left = snapshot.participants.filter((id) => !done.has(id)).length;
   if (left === 0) return "Respondieron todos.";
   return left === 1 ? "Falta uno por responder." : `Faltan ${left} por responder.`;
 }
@@ -90,10 +90,10 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
   const selected = view.pending ?? mine ?? null;
   const round = game?.rounds[game.current];
   const toponym = round ? revealedToponym(round) : null;
-  const alone = (game?.participants.length ?? 1) < 2;
-  const late = game && isHost ? behind(snapshot, game, view) : undefined;
-  const upToDate =
-    game && late ? `${game.participants.length - late.size} de ${game.participants.length} al día` : undefined;
+  const alone = snapshot.participants.length < 2;
+  const late = isHost ? behind(snapshot, view) : undefined;
+  const total = snapshot.participants.length;
+  const upToDate = late ? `${total - late.size} de ${total} al día` : undefined;
 
   return (
     <Shell
@@ -152,13 +152,13 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
               upToDate={alone ? undefined : upToDate}
             />
           ) : (
-            <Choices onAnswer={session.answer} selected={selected} waiting={missing(game)} />
+            <Choices onAnswer={session.answer} selected={selected} waiting={missing(snapshot, game)} />
           )}
 
           {!alone && (isHost || toponym !== null) && (
             <>
               <h2 className="mt-8 text-base font-semibold text-muted">
-                {toponym ? "Quién cayó" : (missing(game) ?? "La sala")}
+                {toponym ? "Quién cayó" : (missing(snapshot, game) ?? "La sala")}
               </h2>
               <Players snapshot={snapshot} game={game} me={me} behind={late} />
               {isHost && !toponym && (

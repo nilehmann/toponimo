@@ -16,6 +16,12 @@ referencia: si el código y ese documento no coinciden, hay que arreglar uno de 
 - El protocolo vive en `net/host.ts` y `net/client.ts`, TypeScript puro sin React. Ahí están los
   reenvíos y los reintentos, y por eso se prueban enteros con relojes falsos en
   `net/runtime.test.ts`. `hooks/useSession.ts` es solo el enganche a React.
+- `participants` vive en `SessionState`, no en `Game`: es quién está en la sala *ahora*, y en el
+  lobby también se entra y se sale. Con la lista adentro de la partida, quien se iba del lobby
+  volvía de fantasma en cada ronda.
+- `game/validate.ts` valida lo que entra de afuera: el cable y `localStorage`. Todo lo que no
+  cumple la forma se descarta entero. Un `hello` con un nombre que no es texto se guardaba en
+  `players`, se persistía, y rompía la pantalla del host en cada reapertura.
 - `net/ack.ts` tiene **una sola** regla de cuándo hace falta un acuse, usada por los dos lados: el
   host arma los reenvíos con ella y el cliente decide con ella cuándo acusar. Si se separaran,
   podría quedar un reenvío que nadie va a acusar nunca.

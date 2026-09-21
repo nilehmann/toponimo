@@ -8,6 +8,8 @@ import {
   type HostMessage,
   type Transport,
   type TransportHandlers,
+  isClientMessage,
+  isHostMessage,
   trackPlayerId,
   wrongSide,
 } from "./transport";
@@ -23,9 +25,6 @@ interface Delivery {
 /** Cuánto se le da a un broker público para contestar antes de probar el siguiente. */
 const CONNECT_TIMEOUT = 6000;
 
-const CLIENT_TAGS = new Set(["hello", "answer", "ack", "bye"]);
-const HOST_TAGS = new Set(["welcome", "snapshot"]);
-
 /** El clientId sale del código y del DeviceId: se elige al abrir la conexión, antes del primer
  *  mensaje, así que no puede depender del PlayerId — y un PlayerId solo es único dentro de su
  *  sala, así que dos salas con un jugador "2" chocarían y el broker desconectaría al anterior. */
@@ -33,15 +32,13 @@ function clientId(code: RoomCode, deviceId: DeviceId): string {
   return `tn-${code}-${deviceId.replaceAll("-", "").slice(0, 8)}`;
 }
 
-/** Lo que llega es de un broker público: cualquiera puede publicar cualquier cosa en el topic.
- *  Se mira el sobre nomás, que es lo que hace falta para que un payload raro no rompa la
- *  pantalla; de ahí para adentro la sala ya asume confianza total. */
-function parse(payload: Uint8Array, tags: Set<string>): unknown | null {
+/** Lo que llega es de un broker público: cualquiera puede publicar cualquier cosa en el topic,
+ *  así que se comprueba entero antes de entregarlo. Un `hello` con un nombre que no es texto se
+ *  guardaría en `players`, se persistiría, y rompería la pantalla del host en cada reapertura. */
+function parse(payload: Uint8Array, valid: (value: unknown) => boolean): unknown | null {
   try {
     const value: unknown = JSON.parse(new TextDecoder().decode(payload));
-    if (typeof value !== "object" || value === null) return null;
-    const tag = (value as { t?: unknown }).t;
-    return typeof tag === "string" && tags.has(tag) ? value : null;
+    return valid(value) ? value : null;
   } catch {
     return null;
   }
@@ -98,7 +95,7 @@ function open(url: string, id: string): Promise<MqttClient> {
 /** Separado de la conexión para poder probar el ruteo de topics sin un broker. */
 export function wrapClient(client: MqttClient, code: RoomCode, role: Role, deviceId: DeviceId): Transport {
   const topic = topics(code);
-  const tags = role === "host" ? CLIENT_TAGS : HOST_TAGS;
+  const valid = role === "host" ? isClientMessage : isHostMessage;
   /** Lo que llegó antes de que el runtime se enganche. Sin esto habría una ventana entre
    *  suscribirse y escuchar en la que un `hello` se perdería. */
   const queued: Delivery[] = [];
@@ -118,7 +115,7 @@ export function wrapClient(client: MqttClient, code: RoomCode, role: Role, devic
   });
 
   const onMessage = (received: string, payload: Uint8Array) => {
-    const msg = parse(payload, tags);
+    const msg = parse(payload, valid);
     if (msg === null) return;
     if (role === "host") {
       if (received !== topic.inbox) return;

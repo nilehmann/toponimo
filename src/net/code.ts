@@ -60,6 +60,8 @@ export function codeFromHash(hash: string): RoomCode | null {
   return isValidCode(code) ? code : null;
 }
 
+/** Se lleva la query tal cual: es lo que hace que un link armado con `?transporte=local` siga
+ *  siendo local del otro lado, en vez de mandar a esa pestaña a buscar un broker. */
 export function roomLink(code: RoomCode): string {
-  return `${location.origin}${import.meta.env.BASE_URL}#${code}`;
+  return `${location.origin}${import.meta.env.BASE_URL}${location.search}#${code}`;
 }

@@ -95,7 +95,8 @@ describe("sesión del host", () => {
       { ...roto, game: { ...roto.game, rounds: [{ toponym: null, guesses: {} }] } },
       { ...roto, game: { ...roto.game, rounds: "quince" } },
       { ...roto, history: [{ number: 1 }] },
-      { ...roto, game: { ...roto.game, participants: null } },
+      { ...roto, participants: null },
+      { ...roto, participants: [1, 2] },
     ]) {
       localStorage.setItem("toponimo:sala", JSON.stringify(parche));
       expect(loadHostSession("room")).toBeNull();

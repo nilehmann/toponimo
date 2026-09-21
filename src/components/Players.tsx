@@ -9,10 +9,10 @@ interface PlayersProps {
   behind?: Set<PlayerId>;
 }
 
-/** La lista de la sala. En el lobby son todos los que llegaron; con una partida abierta, los
- *  participantes, que es de donde sale la marca de quién respondió. */
+/** Quiénes están en la sala ahora. Con una partida abierta, de acá sale la marca de quién
+ *  respondió; quien se fue no aparece, aunque sus respuestas sigan contando en el marcador. */
 export function Players({ snapshot, game, me, behind }: PlayersProps) {
-  const ids = game ? game.participants : Object.keys(snapshot.players);
+  const ids = snapshot.participants;
   const round = game?.rounds[game.current];
   const toponym = round ? revealedToponym(round) : null;
 
