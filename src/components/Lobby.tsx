@@ -45,7 +45,7 @@ function Invite({ code }: { code: RoomCode }) {
 }
 
 export function Lobby({ snapshot, me, code, onStart }: LobbyProps) {
-  const waiting = Object.keys(snapshot.players).length;
+  const waiting = snapshot.participants.length;
 
   return (
     <section aria-live="polite">

@@ -14,6 +14,7 @@ const EMPTY: Snapshot = {
   code: CODE,
   hostId: "1",
   players: {},
+  participants: ["1"],
   game: null,
   createdAt: 0,
 };
@@ -157,6 +158,28 @@ describe("jugador sobre mqtt", () => {
 });
 
 describe("payloads de un broker público", () => {
+  it("el cliente tampoco aplica un snapshot mal formado", () => {
+    const broker = fakeClient();
+    const transport = wrapClient(broker.client, CODE, "client", "da");
+    const { down, handlers } = collect();
+    transport.connect(handlers);
+
+    for (const basura of [
+      { t: "snapshot", state: { ...EMPTY, version: "7" } },
+      { t: "snapshot", state: { ...EMPTY, players: { "1": { id: 1, name: "Nico" } } } },
+      { t: "snapshot", state: { ...EMPTY, participants: [1] } },
+      { t: "snapshot", state: { ...EMPTY, game: { number: 1 } } },
+      { t: "welcome", deviceId: "da", playerId: 2, state: EMPTY },
+    ]) {
+      broker.arrive(T.host, basura);
+    }
+    expect(down).toEqual([]);
+
+    broker.arrive(T.host, { t: "snapshot", state: EMPTY });
+    expect(down).toHaveLength(1);
+  });
+
+
   it("descarta lo que no es un mensaje del otro lado", () => {
     const broker = fakeClient();
     const transport = wrapClient(broker.client, CODE, "host", "dh");
@@ -172,6 +195,15 @@ describe("payloads de un broker público", () => {
       '{"sin":"tag"}',
       '{"t":42}',
       '{"t":"snapshot","state":{}}',
+      // Un nombre que no es texto se guardaría en players, se persistiría, y rompería la
+      // pantalla del host en cada reapertura.
+      '{"t":"hello","deviceId":"da","name":42}',
+      '{"t":"hello","deviceId":null,"name":"Ana"}',
+      '{"t":"hello","deviceId":"da"}',
+      '{"t":"answer","playerId":"2","gameNumber":1,"round":0,"guess":"si"}',
+      '{"t":"answer","playerId":"2","gameNumber":1,"round":"0","guess":true}',
+      '{"t":"ack","playerId":"2","version":"3"}',
+      '{"t":"bye"}',
     ]) {
       broker.arrive(T.inbox, basura);
     }

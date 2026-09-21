@@ -1,4 +1,5 @@
 import type { DeviceId, Guess, PlayerId, RoundIndex, Snapshot } from "../game/types";
+import { isSnapshot } from "../game/validate";
 
 export type ClientMessage =
   /** El único mensaje que lleva el DeviceId. */
@@ -45,6 +46,43 @@ export function trackPlayerId(deviceId: DeviceId, onAssigned: (id: PlayerId) => 
       onAssigned(assigned);
     },
   };
+}
+
+/** Lo que llega por un topic público no lo escribió necesariamente alguien de la sala, así que
+ *  se mira la forma antes de entregarlo. Un mensaje que no la cumple se descarta entero: medio
+ *  aplicado sería peor, y el diseño ya tiene con qué recuperarse de uno perdido. */
+export function isClientMessage(value: unknown): value is ClientMessage {
+  if (typeof value !== "object" || value === null) return false;
+  const msg = value as Record<string, unknown>;
+  switch (msg.t) {
+    case "hello":
+      return typeof msg.deviceId === "string" && typeof msg.name === "string";
+    case "answer":
+      return (
+        typeof msg.playerId === "string" &&
+        typeof msg.gameNumber === "number" &&
+        typeof msg.round === "number" &&
+        typeof msg.guess === "boolean"
+      );
+    case "ack":
+      return typeof msg.playerId === "string" && typeof msg.version === "number";
+    case "bye":
+      return typeof msg.playerId === "string";
+    default:
+      return false;
+  }
+}
+
+export function isHostMessage(value: unknown): value is HostMessage {
+  if (typeof value !== "object" || value === null) return false;
+  const msg = value as Record<string, unknown>;
+  if (msg.t === "snapshot") return isSnapshot(msg.state);
+  return (
+    msg.t === "welcome" &&
+    typeof msg.deviceId === "string" &&
+    typeof msg.playerId === "string" &&
+    isSnapshot(msg.state)
+  );
 }
 
 /** Un transporte que el host no usa para mandar, y viceversa. Llamar al lado que no es sería un

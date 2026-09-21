@@ -9,6 +9,7 @@ const EMPTY: Snapshot = {
   code: "2345678",
   hostId: "1",
   players: {},
+  participants: ["1"],
   game: null,
   createdAt: 0,
 };

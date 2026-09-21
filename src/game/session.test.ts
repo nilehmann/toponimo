@@ -94,20 +94,20 @@ describe("join", () => {
       name: "Caro",
     });
     expect(state.players["4"].name).toBe("Caro");
-    expect(state.game!.participants).toEqual(["1", "3", "4"]);
+    expect(state.participants).toEqual(["1", "3", "4"]);
   });
 
   it("quien llega con el resumen en pantalla juega la próxima", () => {
     let state = run(withGuests("Ana"), start());
     for (let i = 0; i < ROUNDS; i++) state = run(state, { type: "reveal" }, { type: "next", at: 1 });
     state = run(state, { type: "join", deviceId: "tarde", name: "Caro" }, start(1));
-    expect(state.game!.participants).toEqual(["1", "2", "3"]);
+    expect(state.participants).toEqual(["1", "2", "3"]);
     expect(violations(state)).toEqual([]);
   });
 
   it("mete a quien llega con la partida abierta", () => {
     const state = run(fresh(), start(), { type: "join", deviceId: "tarde", name: "Ana" });
-    expect(state.game!.participants).toEqual(["1", "2"]);
+    expect(state.participants).toEqual(["1", "2"]);
   });
 });
 
@@ -208,11 +208,11 @@ describe("start", () => {
   it("arranca con todos los del lobby y arrastra a los participantes después", () => {
     const lobby = withGuests("Ana", "Beto");
     const first = run(lobby, start());
-    expect(first.game!.participants).toEqual(["1", "2", "3"]);
+    expect(first.participants).toEqual(["1", "2", "3"]);
     let state = run(first, { type: "bye", playerId: "3" });
     for (let i = 0; i < ROUNDS; i++) state = run(state, { type: "reveal" }, { type: "next", at: 1 });
     state = reduce(state, start(1));
-    expect(state.game!.participants).toEqual(["1", "2"]);
+    expect(state.participants).toEqual(["1", "2"]);
   });
 });
 
@@ -225,7 +225,7 @@ describe("bye", () => {
       { type: "reveal" },
       { type: "bye", playerId: "2" },
     );
-    expect(state.game!.participants).toEqual(["1"]);
+    expect(state.participants).toEqual(["1"]);
     expect(state.players["2"]).toBeDefined();
     expect(score(state.game!, "2")).toBe(1);
     expect(scorers(state.game!)).toEqual(["2"]);
@@ -241,13 +241,23 @@ describe("bye", () => {
       answer("1", 0, true),
       { type: "bye", playerId: "2" },
     );
-    expect(state.game!.participants).toEqual(["1"]);
+    expect(state.participants).toEqual(["1"]);
     expect(phase(state.game)).toBe("revealed");
   });
 
   it("no revela nada si el host todavía no respondió", () => {
     const state = run(withGuests("Ana"), start(), { type: "bye", playerId: "2" });
     expect(phase(state.game)).toBe("answering");
+  });
+
+  it("también saca a quien se va del lobby, antes de que haya partida", () => {
+    // Si no, vuelve de fantasma en cada ronda: la lista dice que falta uno para siempre, el
+    // host pierde el revelado automático y los reenvíos persiguen a alguien que no está.
+    const state = run(withGuests("Ana"), { type: "bye", playerId: "2" });
+    expect(state.participants).toEqual(["1"]);
+    expect(state.players["2"]).toBeDefined();
+    expect(run(state, start()).participants).toEqual(["1"]);
+    expect(violations(state)).toEqual([]);
   });
 
   it("el host nunca se saca a sí mismo", () => {
@@ -262,7 +272,7 @@ describe("bye", () => {
       { type: "bye", playerId: "2" },
       { type: "join", deviceId: "device-0", name: "Ana" },
     );
-    expect(state.game!.participants).toEqual(["1", "2"]);
+    expect(state.participants).toEqual(["1", "2"]);
   });
 });
 
@@ -298,7 +308,7 @@ describe("puntaje", () => {
     for (let i = 0; i < 10; i++) state = run(state, { type: "reveal" }, { type: "next", at: 1 });
     state = run(state, { type: "join", deviceId: "tarde", name: "Caro" });
     state = run(state, answer("3", 10, true), { type: "reveal" });
-    expect(state.game!.participants).toEqual(["1", "2", "3"]);
+    expect(state.participants).toEqual(["1", "2", "3"]);
     expect(score(state.game!, "3")).toBe(1);
   });
 

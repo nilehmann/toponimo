@@ -64,8 +64,6 @@ interface Game {
   /** Correlativo dentro de la sala: 1, 2, 3… */
   number: number;
   rounds: Round[];
-  /** Quiénes cuentan ahora en la lista de respuestas. Crece al entrar, se achica con `bye`. */
-  participants: PlayerId[];
   /** La ronda en pantalla. Al terminar se queda en 14: el fin lo marca `finishedAt`. */
   current: RoundIndex;
   /** Si la ronda `current` ya fue revelada por el host. */
@@ -81,6 +79,8 @@ interface SessionState {
   code: RoomCode;
   hostId: PlayerId;
   players: Record<PlayerId, Player>;
+  /** Quiénes están en la sala ahora. Crece al entrar, se achica con `bye`. */
+  participants: PlayerId[];
   /** La partida en curso, o la recién cerrada mientras se muestra el resumen. */
   game: Game | null;
   /** Partidas cerradas, en orden. */
@@ -134,7 +134,7 @@ Son sobre el estado del host. `PublicGame` es una proyección y no los cumple: s
 recortadas.
 
 - `game.rounds.length === 15`.
-- `game.participants` contiene a `hostId`.
+- `participants` contiene a `hostId`, y todos están en `players`.
 - Toda clave de `guesses` está en `players`.
 - `version` solo crece, y solo la mueve el host.
 
@@ -153,6 +153,13 @@ Las cuatro condiciones son mutuamente excluyentes y cada fila se lee suelta, sin
 de la tabla. Vale la pena escribirlas así: `game?.finishedAt !== null` parece equivalente a la
 última, pero con `game === null` da `undefined !== null`, que es `true`, y el Lobby pasaría también
 por Resumen.
+
+`participants` vive en la sesión y no en la partida porque es una propiedad del *ahora*: en el
+lobby también hay gente que llega y se va, y ahí no hay ninguna partida donde anotarlo. Con la
+lista adentro de `Game`, quien se iba del lobby no se iba de ninguna parte y volvía de fantasma en
+cada ronda: la lista decía que faltaba uno para siempre, el host perdía el revelado automático y
+los reenvíos perseguían a alguien que no estaba. Una partida vieja tampoco necesita recordar
+quiénes la jugaban: eso está en sus `guesses`, que es además lo que sobrevive a un `bye`.
 
 Una partida cerrada se queda en `game` mientras se muestra el resumen, y pasa a `history` recién
 cuando el host arranca la siguiente. Así el resumen es un estado real y no un caso especial. Por eso
@@ -221,10 +228,11 @@ type HostMessage =
    snapshot de versión **menor** no tiene ningún efecto, pero uno de la **misma** versión repinta
    igual. Si no, el caso para el que existe el botón —el host no tiene tu respuesta, así que no
    tiene nada nuevo que contar— lo dejaría exactamente como estaba.
-8. **`bye` saca de `participants`, no de `players`.** Irse también puede cerrar la ronda: si el
-   host ya respondió y se va el último invitado, queda un solo participante que ya contestó, y ahí
-   se revela sola por la misma regla del solitario. Sin eso el host quedaría mirando una ronda sin
-   revelar y sin botón para revelarla, porque esa pantalla no lo tiene cuando se juega solo.
+8. **`bye` saca de `participants`, no de `players`.** Vale también en el lobby, donde todavía no
+   hay partida. Irse además puede cerrar la ronda: si el host ya respondió y se va el último
+   invitado, queda un solo participante que ya contestó, y ahí se revela sola por la misma regla
+   del solitario. Sin eso el host quedaría mirando una ronda sin revelar y sin botón para
+   revelarla, porque esa pantalla no lo tiene cuando se juega solo.
     Quien avisa que se va deja de aparecer en
    la lista de quién respondió, pero sigue en `players` con sus respuestas intactas y en el
    marcador de la partida. Si vuelve con `hello`, se repone. El host nunca se saca a sí mismo, que

@@ -51,8 +51,6 @@ export interface Game {
   /** Correlativo dentro de la sala: 1, 2, 3… */
   number: number;
   rounds: Round[];
-  /** Quiénes cuentan ahora en la lista de respuestas. Crece al entrar, se achica con `bye`. */
-  participants: PlayerId[];
   /** La ronda en pantalla. Al terminar se queda en 14: el fin lo marca `finishedAt`. */
   current: RoundIndex;
   /** Si la ronda `current` ya fue revelada por el host. */
@@ -68,6 +66,11 @@ export interface SessionState {
   code: RoomCode;
   hostId: PlayerId;
   players: Record<PlayerId, Player>;
+  /** Quiénes están en la sala ahora. Crece al entrar, se achica con `bye`. Vive acá y no en la
+   *  partida porque es una propiedad del ahora: en el lobby también hay gente que llega y se va,
+   *  y una partida vieja no tiene por qué recordar quiénes la jugaban —eso está en sus
+   *  `guesses`. */
+  participants: PlayerId[];
   /** La partida en curso, o la recién cerrada mientras se muestra el resumen. */
   game: Game | null;
   /** Partidas cerradas, en orden. */

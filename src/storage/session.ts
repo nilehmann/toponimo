@@ -1,5 +1,6 @@
 import { violations } from "../game/session";
-import type { Game, SessionState } from "../game/types";
+import type { SessionState } from "../game/types";
+import { isSessionState } from "../game/validate";
 import { isLocal } from "../net/open";
 import { readJson, remove, scopeForTesting, writeJson } from "./local";
 
@@ -20,46 +21,6 @@ export type Slot = keyof typeof KEYS;
 export const SLOTS: Slot[] = ["room", "solo"];
 
 const scope = () => scopeForTesting(isLocal());
-
-function isGame(value: unknown): value is Game {
-  if (typeof value !== "object" || value === null) return false;
-  const it = value as Partial<Game>;
-  return (
-    typeof it.number === "number" &&
-    typeof it.current === "number" &&
-    typeof it.revealed === "boolean" &&
-    (it.finishedAt === null || typeof it.finishedAt === "number") &&
-    Array.isArray(it.participants) &&
-    Array.isArray(it.rounds) &&
-    it.rounds.every(
-      (round) =>
-        typeof round === "object" &&
-        round !== null &&
-        typeof round.toponym === "object" &&
-        round.toponym !== null &&
-        typeof round.guesses === "object" &&
-        round.guesses !== null,
-    )
-  );
-}
-
-function isSessionState(value: unknown): value is SessionState {
-  if (typeof value !== "object" || value === null) return false;
-  const it = value as Partial<SessionState>;
-  return (
-    typeof it.version === "number" &&
-    typeof it.code === "string" &&
-    typeof it.hostId === "string" &&
-    typeof it.createdAt === "number" &&
-    typeof it.players === "object" &&
-    it.players !== null &&
-    typeof it.devices === "object" &&
-    it.devices !== null &&
-    Array.isArray(it.history) &&
-    it.history.every(isGame) &&
-    (it.game === null || isGame(it.game))
-  );
-}
 
 /** El host guarda la única copia autoritativa, así que al reabrir retoma exactamente donde iba.
  *  Un estado que no cumple los invariantes se descarta: seguir desde algo roto lo difundiría a

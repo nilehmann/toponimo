@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
  *  para que escale sin bordes borrosos y tome los colores del tema. */
 export function Qr({ value, className = "" }: { value: string; className?: string }) {
   const [code, setCode] = useState<{ path: string; size: number } | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let vigente = true;
+    setFailed(false);
     void import("qrcode-generator").then(({ default: qrcode }) => {
       const qr = qrcode(0, "M");
       qr.addData(value);
@@ -19,12 +21,22 @@ export function Qr({ value, className = "" }: { value: string; className?: strin
         }
       }
       if (vigente) setCode({ path, size });
+    }, () => {
+      // El código y el link siguen ahí, así que perder el QR no deja a nadie afuera.
+      if (vigente) setFailed(true);
     });
     return () => {
       vigente = false;
     };
   }, [value]);
 
+  if (failed) {
+    return (
+      <p className="max-w-56 text-center text-sm text-muted">
+        No se pudo dibujar el QR. Pásales el código o el link.
+      </p>
+    );
+  }
   if (!code) return <div aria-hidden="true" className={`animate-pulse bg-line ${className}`} />;
 
   const margin = 2;

@@ -230,7 +230,7 @@ describe("una ronda", () => {
     await settle();
 
     expect(Object.keys(gameOf(host).rounds[0].guesses)).toEqual(["2"]);
-    expect(gameOf(host).participants).toEqual(["1", "2", "3"]);
+    expect(snapshotOf(host).participants).toEqual(["1", "2", "3"]);
   });
 });
 
@@ -352,7 +352,7 @@ describe("acuse de recibo y reenvíos", () => {
     ana.leave();
     await settle();
 
-    expect(gameOf(host).participants).toEqual(["1"]);
+    expect(snapshotOf(host).participants).toEqual(["1"]);
     host.reveal();
     await vi.advanceTimersByTimeAsync(20_000);
     expect(enviosDirigidos).toEqual([]);
@@ -407,13 +407,13 @@ describe("irse y volver", () => {
     ana.leave();
     await settle();
 
-    expect(gameOf(host).participants).toEqual(["1"]);
+    expect(snapshotOf(host).participants).toEqual(["1"]);
     expect(snapshotOf(host).players["2"]).toBeDefined();
     expect(score(gameOf(host), "2")).toBe(1);
 
     const devuelta = join("da", "Ana");
     await settle();
-    expect(gameOf(host).participants).toEqual(["1", "2"]);
+    expect(snapshotOf(host).participants).toEqual(["1", "2"]);
     expect(meOf(devuelta)).toBe("2");
   });
 });

@@ -39,6 +39,7 @@ export function createSession(
     code,
     hostId: HOST_ID,
     players: { [HOST_ID]: { id: HOST_ID, name } },
+    participants: [HOST_ID],
     game: null,
     history: [],
     devices: { [deviceId]: HOST_ID },
@@ -68,11 +69,12 @@ function uniqueName(players: Record<PlayerId, Player>, name: string, except?: Pl
 }
 
 /** Jugando solo no hay un segundo toque: sale de revelar apenas respondieron todos y hay un
- *  solo participante. No es un modo aparte ni un ajuste. */
-function withAutoReveal(game: Game): Game {
-  if (game.revealed || game.participants.length !== 1) return game;
+ *  solo participante. No es un modo aparte ni un ajuste, y por eso también cierra la ronda
+ *  cuando el que se va deja al host respondiendo solo. */
+function withAutoReveal(game: Game | null, participants: PlayerId[]): Game | null {
+  if (!game || game.revealed || participants.length !== 1) return game;
   const { guesses } = game.rounds[game.current];
-  return game.participants.every((id) => id in guesses) ? { ...game, revealed: true } : game;
+  return participants.every((id) => id in guesses) ? { ...game, revealed: true } : game;
 }
 
 function withCurrentRound(game: Game, round: Round): Game {
@@ -93,7 +95,7 @@ function join(state: SessionState, deviceId: DeviceId, name: string): SessionSta
     players: { ...state.players, [id]: player },
     devices: { ...state.devices, [deviceId]: id },
     // Quien llega con una partida abierta entra a jugarla desde la ronda en curso.
-    game: state.game ? { ...state.game, participants: [...state.game.participants, id] } : null,
+    participants: [...state.participants, id],
   };
 }
 
@@ -102,16 +104,13 @@ function join(state: SessionState, deviceId: DeviceId, name: string): SessionSta
 function rejoin(state: SessionState, id: PlayerId, name: string): SessionState {
   const current = state.players[id];
   const renamed = name === current.name ? current.name : uniqueName(state.players, name, id);
-  const missing = state.game !== null && !state.game.participants.includes(id);
+  const missing = !state.participants.includes(id);
   if (renamed === current.name && !missing) return state;
   return {
     ...state,
     version: state.version + 1,
     players: { ...state.players, [id]: { id, name: renamed } },
-    game:
-      missing && state.game
-        ? { ...state.game, participants: [...state.game.participants, id] }
-        : state.game,
+    participants: missing ? [...state.participants, id] : state.participants,
   };
 }
 
@@ -136,7 +135,7 @@ export function reduce(state: SessionState, action: Action): SessionState {
       return {
         ...state,
         version: state.version + 1,
-        game: withAutoReveal(withCurrentRound(game, { ...round, guesses })),
+        game: withAutoReveal(withCurrentRound(game, { ...round, guesses }), state.participants),
       };
     }
 
@@ -151,20 +150,20 @@ export function reduce(state: SessionState, action: Action): SessionState {
         game.current + 1 < ROUNDS
           ? { ...game, current: game.current + 1, revealed: false }
           : { ...game, finishedAt: action.at };
-      return { ...state, version: state.version + 1, game: withAutoReveal(advanced) };
+      return {
+        ...state,
+        version: state.version + 1,
+        game: withAutoReveal(advanced, state.participants),
+      };
     }
 
     case "start": {
       if (action.toponyms.length !== ROUNDS) return state;
       const rounds = action.toponyms.map((toponym) => ({ toponym, guesses: {} }));
       // La partida cerrada pasa a `history` recién ahora, no al terminarse.
-      const participants = game ? game.participants : Object.keys(state.players);
       const fresh: Game = {
         number: game ? game.number + 1 : 1,
         rounds,
-        participants: participants.includes(state.hostId)
-          ? participants
-          : [state.hostId, ...participants],
         current: 0,
         revealed: false,
         finishedAt: null,
@@ -179,15 +178,16 @@ export function reduce(state: SessionState, action: Action): SessionState {
 
     case "bye": {
       // El host nunca se saca a sí mismo, que es lo que mantiene el invariante.
-      if (!game || action.playerId === state.hostId) return state;
-      if (!game.participants.includes(action.playerId)) return state;
+      if (action.playerId === state.hostId) return state;
+      if (!state.participants.includes(action.playerId)) return state;
       // Irse puede dejar la ronda con todos respondidos: sin esto, el host que ya contestó se
       // queda solo mirando una ronda sin revelar y sin botón para revelarla.
-      const participants = game.participants.filter((id) => id !== action.playerId);
+      const participants = state.participants.filter((id) => id !== action.playerId);
       return {
         ...state,
         version: state.version + 1,
-        game: withAutoReveal({ ...game, participants }),
+        participants,
+        game: withAutoReveal(game, participants),
       };
     }
   }
@@ -203,6 +203,7 @@ export function project(state: SessionState): Snapshot {
     code: state.code,
     hostId: state.hostId,
     players: state.players,
+    participants: state.participants,
     game: state.game && projectGame(state.game),
     createdAt: state.createdAt,
   };
@@ -217,7 +218,6 @@ function projectGame(game: Game): PublicGame {
     }));
   return {
     number: game.number,
-    participants: game.participants,
     current: game.current,
     revealed: game.revealed,
     finishedAt: game.finishedAt,
@@ -305,11 +305,12 @@ export function playersOf(snapshot: Snapshot, ids: Iterable<PlayerId>): Player[]
 export function violations(state: SessionState): string[] {
   const bad: string[] = [];
   if (!state.players[state.hostId]) bad.push("el host no está en players");
+  if (!state.participants.includes(state.hostId)) bad.push("el host no está en participants");
+  for (const id of state.participants) {
+    if (!state.players[id]) bad.push(`participa ${id}, que no está en players`);
+  }
   for (const game of [...state.history, ...(state.game ? [state.game] : [])]) {
     if (game.rounds.length !== ROUNDS) bad.push(`la partida ${game.number} no tiene 15 rondas`);
-    if (!game.participants.includes(state.hostId)) {
-      bad.push(`la partida ${game.number} no incluye al host en participants`);
-    }
     for (const round of game.rounds) {
       for (const id of Object.keys(round.guesses)) {
         if (!state.players[id]) bad.push(`la partida ${game.number} tiene una respuesta de ${id}`);
