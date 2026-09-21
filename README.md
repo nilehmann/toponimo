@@ -37,6 +37,19 @@ Cartografía del Censo 2017 (INE), versión de [pachadotdev/censo2017-cartografi
 
 Se usan localidades rurales de 40 a 3.000 habitantes (suma de sus entidades), más pueblos y aldeas. Se excluyen los nombres de comuna y los genéricos (Sector, Km, Indeterminada…).
 
+## Geometría
+
+`download.py` baja además los `.shp` de las tres capas (79 MB, contra 0,6 MB de solo los `.dbf`) y
+`build_geo.py` escribe un GeoJSON Feature por topónimo en `data/processed/geo/{id}.json`, con el
+contorno del lugar y un punto garantizado dentro para el pin. Los 4.431 topónimos jugables tienen
+geometría; la mediana pesa 2 KB y el máximo 30 KB.
+
+Las aldeas vienen partidas en manzanas censales —La Tirana son 181— y se unen con `shapely`. Los
+polígonos que se pasan de 20 KB se vuelven a simplificar: son costas de fiordo de Aysén y
+Magallanes, un solo borde continuo de miles de vértices que a escala de pantalla no se distingue.
+
+Esto no corre en `npm run data`: se hace a mano cuando hace falta.
+
 ## Inventados
 
 `build_fake.py` los genera de cuatro formas:
