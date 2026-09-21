@@ -183,8 +183,10 @@ type ClientMessage =
   | { t: "bye"; playerId: PlayerId };
 
 type HostMessage =
-  /** Respuesta a `hello`: le dice al cliente quién es en esta sala. */
-  | { t: "welcome"; playerId: PlayerId; state: Snapshot }
+  /** Respuesta a `hello`: le dice al cliente quién es en esta sala. Repite el `deviceId` que
+   *  saludó, que es lo único con que el que recién llega puede reconocer que el mensaje es
+   *  suyo: su `PlayerId` es justamente lo que viene a entregarle. */
+  | { t: "welcome"; deviceId: DeviceId; playerId: PlayerId; state: Snapshot }
   | { t: "snapshot"; state: Snapshot };
 ```
 
@@ -215,7 +217,10 @@ type HostMessage =
    todo con el `welcome` que llega. Si el host nunca recibió tu respuesta, el estado vuelve sin
    ella y los botones quedan deseleccionados: respondés de nuevo con el mismo botón de siempre. No
    hay reenvío automático ni un control aparte para reintentar — el reenvío de una respuesta es,
-   simplemente, volver a responder.
+   simplemente, volver a responder. Ese repintado es lo que distingue *descartar* de *aplicar*: un
+   snapshot de versión **menor** no tiene ningún efecto, pero uno de la **misma** versión repinta
+   igual. Si no, el caso para el que existe el botón —el host no tiene tu respuesta, así que no
+   tiene nada nuevo que contar— lo dejaría exactamente como estaba.
 8. **`bye` saca de `participants`, no de `players`.** Quien avisa que se va deja de aparecer en
    la lista de quién respondió, pero sigue en `players` con sus respuestas intactas y en el
    marcador de la partida. Si vuelve con `hello`, se repone. El host nunca se saca a sí mismo, que
@@ -241,7 +246,9 @@ type HostMessage =
    tampoco bloquea: si alguien tiene el teléfono apagado, no secuestra la partida.
 
 Si una respuesta llega después del reveal, el host la rechaza y esa persona figura como que no
-respondió. La UI se lo dice con todas sus letras en vez de dejarla creyendo que su toque se perdió.
+respondió. La UI se lo dice con todas sus letras en vez de dejarla creyendo que su toque se perdió:
+el cliente se da cuenta solo, porque la ronda que estaba contestando le vuelve cerrada y sin su
+elección. El aviso dura lo que dura esa ronda.
 
 ### Acuse de recibo y reenvíos
 
@@ -257,9 +264,15 @@ un avance de ronda**, y el host lleva la cuenta:
 interface HostRuntime {
   /** Última versión que acusó cada jugador. De acá salen los contadores de la UI. */
   acked: Record<PlayerId, number>;
+  /** La última versión que había que acusar, o 0 si todavía no hubo ninguna. */
+  awaited: number;
   retries: Record<PlayerId, { version: number; attempt: number }>;
 }
 ```
+
+Estar al día se mide contra `awaited` y no contra la versión actual, que es lo mismo que decide
+qué se reenvía. Si se midiera contra la versión, una respuesta ajena —que sube la versión y que
+nadie acusa, ni tiene por qué— dejaría a media sala marcada como atrasada sin que falte nada.
 
 El cliente, del otro lado, no guarda nada: le basta con la última versión que aplicó, en memoria,
 para descartar los snapshots rezagados. Todo lo que muestra —incluida su propia elección— sale del
@@ -322,8 +335,13 @@ interface Transport {
 |---|---|
 | `MqttTransport` | La real. |
 | `NullTransport` | No hace nada. **Es** el modo solitario. |
-| `LoopbackTransport` | Varios jugadores simulados en una pestaña, para desarrollar sin broker. |
-| `BroadcastChannelTransport` | Host y jugador en pestañas distintas de la misma máquina. |
+| `LoopbackTransport` | Varios jugadores simulados en una pestaña, para desarrollar sin broker. En `#banco`, con casillas para tirar mensajes a mano. |
+| `BroadcastChannelTransport` | Host y jugador en pestañas distintas de la misma máquina, con `?transporte=local`. |
+
+Los dos de prueba comparten un problema que la sala de verdad no tiene: en una misma máquina el
+`localStorage` es uno solo, así que dos pestañas serían el mismo `DeviceId` y el host les daría el
+mismo jugador. Con `?transporte=local` la identidad pasa a `sessionStorage`, que es por pestaña y
+sobrevive a recargar.
 
 `MqttTransport` se carga con `import()` dinámico al entrar a una sala, así que quien solo juega solo
 nunca descarga la librería.
@@ -390,8 +408,13 @@ invitárselo, pero existir siempre es lo que permite que no haya ningún campo d
 
 | Quién | Qué guarda |
 |---|---|
-| Host | `SessionState` completo. Es la única copia autoritativa. |
+| Host | `SessionState` completo, más si la sala es compartida. Es la única copia autoritativa. |
 | Jugador | Solo su identidad. Nada de la partida. |
+
+Ese «si es compartida» no es parte del estado —ahí no hay ningún campo que diga en qué modo
+estamos— sino lo que hace falta al reabrir para saber qué transporte levantar y si hay a quién
+mostrarle el código. No se puede deducir del estado: una sala recién creada y una partida en
+solitario se ven igual, con un solo jugador que es su propio host.
 
 ```ts
 interface Identity {
@@ -400,6 +423,10 @@ interface Identity {
   lastRoomCode: RoomCode | null;
 }
 ```
+
+`lastRoomCode` es lo que le deja volver: al reabrir, el inicio le ofrece esa sala y entra con el
+mismo `DeviceId` y el mismo nombre, que es lo que el host reconoce. Salir a mano sí la olvida —
+cerrar la app no es lo mismo que decir que terminaste.
 
 Un jugador no guarda nada de la partida: al volver la pide entera, y así nunca muestra algo viejo
 como si fuera actual. Ni siquiera su propia respuesta — viaja en las `guesses`, así que el host se
@@ -452,9 +479,16 @@ src/
     types.ts       se le suman Player, Game, SessionState, Identity
     toponyms.ts    hoy rounds.ts
     session.ts     **reducer, acciones y selectores derivados**
+    fixtures.ts    **letreros deterministas para las pruebas**
   net/             **todo nuevo**
     transport.ts   la interfaz y los tipos de mensaje
+    host.ts        **la autoridad: aplica, difunde, acusa y reenvía**
+    client.ts      **manda y espera; solo recuerda la última versión que aplicó**
+    ack.ts         **la regla de cuándo hace falta un acuse, una sola para los dos lados**
+    retry.ts       **las esperas de 2, 4 y 8 segundos**
+    open.ts        **qué transporte le toca a cada modo**
     mqtt.ts        null.ts   loopback.ts   broadcast.ts
+    brokers.ts     **la lista fija y los topics**
     code.ts        generación y validación del código
   storage/         **todo nuevo**
     session.ts     persistencia del host
@@ -463,7 +497,15 @@ src/
     useGameData.ts useTheme.ts
     useSession.ts  **une reducer, transporte y persistencia**
   components/      Sign, Choices, Reveal, Ticks, Summary, ThemeToggle, ui
+                   **Home, Lobby, Players, Connection, Qr**
+  dev/
+    Harness.tsx    **el banco de loopback, en `#banco`**
 ```
+
+El protocolo vive en `net/host.ts` y `net/client.ts`, que son TypeScript puro: no conocen React y
+se prueban enteros —reenvíos y reintentos incluidos— con relojes falsos. `useSession` es solo el
+enganche: elige el transporte, persiste y expone el estado a la pantalla. Es lo que deja probar
+que un reveal perdido se recupera sin montar un componente.
 
 Hay dos renombres en lo que ya existe. `game/rounds.ts` pasa a `toponyms.ts`, y el `Round` de hoy
 —nombre, si es real, comuna y región— pasa a llamarse `Toponym`, porque acá `Round` es otra cosa:
