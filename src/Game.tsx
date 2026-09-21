@@ -6,22 +6,22 @@ import { Sign } from "./components/Sign";
 import { Summary } from "./components/Summary";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Ticks } from "./components/Ticks";
-import { ROUNDS, buildRounds } from "./game/rounds";
-import type { GameData, Round } from "./game/types";
+import { ROUNDS, buildToponyms } from "./game/toponyms";
+import type { GameData, Toponym } from "./game/types";
 import type { ThemePref } from "./hooks/useTheme";
 
 interface State {
-  rounds: Round[];
+  toponyms: Toponym[];
   /** Ronda en pantalla. Ya respondida si `guesses` tiene una entrada para ella. */
   current: number;
   guesses: boolean[];
   done: boolean;
 }
 
-type Action = { type: "answer"; guess: boolean } | { type: "next" } | { type: "restart"; rounds: Round[] };
+type Action = { type: "answer"; guess: boolean } | { type: "next" } | { type: "restart"; toponyms: Toponym[] };
 
-function init(rounds: Round[]): State {
-  return { rounds, current: 0, guesses: [], done: false };
+function init(toponyms: Toponym[]): State {
+  return { toponyms, current: 0, guesses: [], done: false };
 }
 
 function reducer(state: State, action: Action): State {
@@ -36,7 +36,7 @@ function reducer(state: State, action: Action): State {
         ? { ...state, current: state.current + 1 }
         : { ...state, done: true };
     case "restart":
-      return init(action.rounds);
+      return init(action.toponyms);
   }
 }
 
@@ -46,12 +46,12 @@ interface GameProps {
 }
 
 export function Game({ data, theme }: GameProps) {
-  const [state, dispatch] = useReducer(reducer, data, (d: GameData) => init(buildRounds(d)));
-  const { rounds, current, guesses, done } = state;
+  const [state, dispatch] = useReducer(reducer, data, (d: GameData) => init(buildToponyms(d)));
+  const { toponyms, current, guesses, done } = state;
 
   const answered = guesses.length > current;
-  const round = rounds[current];
-  const score = guesses.reduce((n, guess, i) => n + (guess === rounds[i].real ? 1 : 0), 0);
+  const toponym = toponyms[current];
+  const score = guesses.reduce((n, guess, i) => n + (guess === toponyms[i].real ? 1 : 0), 0);
 
   const nextRef = useRef<HTMLButtonElement>(null);
   const againRef = useRef<HTMLButtonElement>(null);
@@ -98,10 +98,10 @@ export function Game({ data, theme }: GameProps) {
       {done ? (
         <Summary
           ref={againRef}
-          rounds={rounds}
+          toponyms={toponyms}
           guesses={guesses}
           score={score}
-          onRestart={() => dispatch({ type: "restart", rounds: buildRounds(data) })}
+          onRestart={() => dispatch({ type: "restart", toponyms: buildToponyms(data) })}
         />
       ) : (
         <section aria-live="polite">
@@ -109,14 +109,19 @@ export function Game({ data, theme }: GameProps) {
             Cada letrero indica una localidad rural de Chile, o un nombre inventado para confundirte.
           </p>
 
-          <Ticks rounds={rounds} guesses={guesses} current={current} />
-          <Sign name={round.name} revealed={answered} real={round.real} comuna={round.comuna} />
+          <Ticks toponyms={toponyms} guesses={guesses} current={current} />
+          <Sign
+            name={toponym.name}
+            revealed={answered}
+            real={toponym.real}
+            comuna={toponym.real ? toponym.comuna : undefined}
+          />
 
           {answered ? (
             <Reveal
               ref={nextRef}
-              round={round}
-              correct={guesses[current] === round.real}
+              toponym={toponym}
+              correct={guesses[current] === toponym.real}
               last={current + 1 === ROUNDS}
               onNext={() => dispatch({ type: "next" })}
             />

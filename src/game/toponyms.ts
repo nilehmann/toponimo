@@ -1,4 +1,4 @@
-import type { Form, GameData, Round } from "./types";
+import type { Form, GameData, Toponym } from "./types";
 
 export const ROUNDS = 15;
 
@@ -29,25 +29,25 @@ function pickForm(data: GameData): Form {
   return "a";
 }
 
-/** Arma una partida de 15 rondas: 7 u 8 reales, en orden aleatorio y sin nombres repetidos. */
-export function buildRounds(data: GameData): Round[] {
+/** Arma los 15 letreros de una partida: 7 u 8 reales, en orden aleatorio y sin repetir nombres. */
+export function buildToponyms(data: GameData): Toponym[] {
   const nReal = Math.random() < 0.5 ? 7 : 8;
   const flags = shuffle(Array.from({ length: ROUNDS }, (_, i) => i < nReal));
   const used = new Set<string>();
-  const rounds: Round[] = [];
+  const toponyms: Toponym[] = [];
   for (const real of flags) {
-    let round: Round | null = null;
-    while (!round || used.has(round.name)) {
+    let toponym: Toponym | null = null;
+    while (!toponym || used.has(toponym.name)) {
       const f = pickForm(data);
       if (real) {
         const [name, c, r] = pick(data.R[f]);
-        round = { name, real, comuna: data.comunas[c], region: data.regions[r] };
+        toponym = { name, real: true, comuna: data.comunas[c], region: data.regions[r] };
       } else {
-        round = { name: pick(data.F[f]), real };
+        toponym = { name: pick(data.F[f]), real: false };
       }
     }
-    used.add(round.name);
-    rounds.push(round);
+    used.add(toponym.name);
+    toponyms.push(toponym);
   }
-  return rounds;
+  return toponyms;
 }
