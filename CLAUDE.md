@@ -23,12 +23,19 @@ referencia: si el código y ese documento no coinciden, hay que arreglar uno de 
   `version`: una respuesta ajena también sube la versión y nadie la acusa.
 - Un snapshot de versión **menor** se descarta; uno de la **misma** versión repinta igual. Eso es lo
   que hace que refrescar sirva cuando el host no tiene nada nuevo que contar, que es justo el caso
-  para el que existe ese botón.
+  para el que existe ese botón. Y si esa versión es la que ya acusamos, se repite el acuse: el host
+  solo reenvía lo que está esperando, así que verlo de nuevo significa que el acuse se perdió.
+- `unreachable` es «no alcanzo al host», no «no me llega nada». Ver la partida avanzar lo desmiente
+  solo si ya sabemos quiénes somos; sin `PlayerId` lo que falta es justamente que nuestros mensajes
+  lleguen, y ahí la pantalla no ofrece tablero porque no habría nada que tocar.
 - El `welcome` repite el `deviceId` que saludó. Va por el topic de todos, y quien recién llega no
   tiene otra forma de reconocer que es suyo: su `PlayerId` es lo que ese mensaje viene a entregarle.
-- `storage/session.ts` guarda `{ shared, state }`. El `shared` no es parte del estado —ahí no hay
-  ningún campo de modo— sino lo que hace falta al reabrir para saber qué transporte levantar: una
-  sala recién creada y una partida en solitario se ven idénticas en el estado.
+- `storage/session.ts` guarda en dos cajones, sala y solitario. No es un campo de modo —en el estado
+  las dos se ven idénticas— sino lo que hace falta al reabrir para saber qué transporte levantar. Y
+  con un cajón solo, tocar «Jugar solo» borraría la única copia autoritativa de una sala en curso.
+- Todo lo que se lee de `localStorage` se valida antes de usarlo y nunca deja salir una excepción:
+  corre durante el primer render, así que un estado a medio guardar dejaría la pantalla en blanco
+  y sin nada que tocar para borrarlo.
 - Probar con dos pestañas: `?transporte=local` usa `BroadcastChannel` y manda la identidad a
   `sessionStorage`, porque el `localStorage` es uno solo por máquina y las dos pestañas serían el
   mismo dispositivo.

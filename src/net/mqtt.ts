@@ -41,6 +41,9 @@ function parse(payload: Uint8Array, tags: Set<string>): unknown | null {
   }
 }
 
+/** Abre una conexión, o se rinde. Todo lo que arma para esperar se desarma al terminar: un
+ *  `error` posterior es cosa de la reconexión de la librería, y matar el cliente ahí dejaría el
+ *  transporte mudo sin que nadie se entere. */
 function open(url: string, id: string): Promise<MqttClient> {
   return new Promise((resolve, reject) => {
     void import("mqtt").then(({ default: mqtt }) => {
@@ -53,16 +56,30 @@ function open(url: string, id: string): Promise<MqttClient> {
         connectTimeout: CONNECT_TIMEOUT,
         reconnectPeriod: 2000,
       });
-      const fail = (error: unknown) => {
+
+      let settled = false;
+      // `connectTimeout` reintenta en vez de rendirse, así que el plazo se pone acá.
+      const timer = setTimeout(() => fail(new Error(`${url} no contestó`)), CONNECT_TIMEOUT);
+      function done() {
+        settled = true;
+        clearTimeout(timer);
+        client.off("connect", win);
+        client.off("error", fail);
+      }
+      function win() {
+        if (settled) return;
+        done();
+        resolve(client);
+      }
+      function fail(error: unknown) {
+        if (settled) return;
+        done();
         client.end(true);
         reject(error instanceof Error ? error : new Error(String(error)));
-      };
-      client.once("connect", () => resolve(client));
-      client.once("error", fail);
-      // `connectTimeout` reintenta en vez de rendirse, así que el plazo se pone acá.
-      setTimeout(() => {
-        if (!client.connected) fail(new Error(`${url} no contestó`));
-      }, CONNECT_TIMEOUT);
+      }
+
+      client.on("connect", win);
+      client.on("error", fail);
     }, reject);
   });
 }

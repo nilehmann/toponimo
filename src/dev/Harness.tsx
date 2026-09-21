@@ -50,7 +50,7 @@ function Seat({ runtime, isHost, code, data, theme, title }: SeatProps) {
     code,
     isHost,
     identity: { deviceId: "", name: title, lastRoomCode: code },
-    saved: null,
+    saved: { room: null, solo: null },
     answer: (guess: Guess) => runtime.answer(guess),
     reveal: () => runtime.reveal(),
     next: () => runtime.next(),

@@ -37,6 +37,9 @@ export function createClient({ transport, deviceId, name }: ClientOptions): Sess
   let pending: Pending | null = null;
   let lateAt: { gameNumber: number; round: RoundIndex } | null = null;
   let cancelHello: (() => void) | null = null;
+  /** La última versión que acusamos. El host reenvía esa misma versión mientras no le llegue el
+   *  acuse, así que verla de nuevo significa que el acuse se perdió y hay que repetirlo. */
+  let ackedVersion = 0;
 
   const store = createStore<SessionView>(() => {
     const game = snapshot?.game ?? null;
@@ -54,7 +57,9 @@ export function createClient({ transport, deviceId, name }: ClientOptions): Sess
   });
 
   function ack(version: number) {
-    if (me) transport.send({ t: "ack", playerId: me, version });
+    if (!me) return;
+    ackedVersion = version;
+    transport.send({ t: "ack", playerId: me, version });
   }
 
   /** Gana la versión más alta: un snapshot rezagado se descarta sin efecto. Uno de la misma
@@ -65,6 +70,11 @@ export function createClient({ transport, deviceId, name }: ClientOptions): Sess
     const before = snapshot;
     const fresh = snapshot === null || next.version > snapshot.version;
     if (fresh) snapshot = next;
+    // Si ya sabemos quiénes somos, ver la partida avanzar desmiente el aviso: seguir diciendo
+    // que no alcanzamos al host mientras la pantalla se mueve sola sería mentir. Sin `me` no,
+    // porque ahí lo que falta es justamente que nuestros mensajes lleguen.
+    const wasUnreachable = unreachable;
+    if (me) unreachable = false;
 
     const wasPending = pending;
     if (wasPending && me && arrivedLate(wasPending, next, me)) {
@@ -74,7 +84,8 @@ export function createClient({ transport, deviceId, name }: ClientOptions): Sess
     pending = null;
 
     if (fresh && needsAck(before?.game ?? null, next.game)) ack(next.version);
-    return fresh || wasPending !== null;
+    else if (!fresh && ackedVersion === next.version) ack(next.version);
+    return fresh || wasPending !== null || wasUnreachable !== unreachable;
   }
 
   function onHostMessage(msg: HostMessage) {

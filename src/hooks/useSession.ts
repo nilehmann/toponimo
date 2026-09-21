@@ -11,7 +11,14 @@ import { createRoom, openRoom } from "../net/open";
 import { EMPTY_VIEW, type SessionRuntime, type SessionView } from "../net/runtime";
 import type { Transport } from "../net/transport";
 import { loadIdentity, rememberName, rememberRoom } from "../storage/identity";
-import { type HostRecord, clearHostSession, loadHostSession, saveHostSession } from "../storage/session";
+import {
+  type Saved,
+  type Slot,
+  clearHostSession,
+  loadHostSession,
+  loadSaved,
+  saveHostSession,
+} from "../storage/session";
 
 export type SessionStatus =
   | { status: "home" }
@@ -23,9 +30,9 @@ export interface SessionControls {
   playSolo(): void;
   createRoom(name: string): void;
   joinRoom(code: RoomCode, name: string): void;
-  /** Reabrir la sala guardada. La del host es la única copia autoritativa que hay. */
-  resume(): void;
-  forgetSaved(): void;
+  /** Reabrir lo guardado. Del lado del host es la única copia autoritativa que hay. */
+  resume(slot: Slot): void;
+  forgetSaved(slot: Slot): void;
   goHome(): void;
   dismissError(): void;
 }
@@ -37,8 +44,8 @@ export interface Session {
   code: RoomCode | null;
   isHost: boolean;
   identity: Identity;
-  /** La sala que quedó guardada, para ofrecer retomarla desde el inicio. */
-  saved: HostRecord | null;
+  /** Lo que quedó guardado, para ofrecerlo desde el inicio. */
+  saved: Saved;
   answer(guess: Guess): void;
   reveal(): void;
   next(): void;
@@ -75,7 +82,7 @@ function message(error: unknown): string {
  *  modo; de ahí para arriba las pantallas solo miran el estado. */
 export function useSession(data: GameData): Session {
   const [identity, setIdentity] = useState<Identity>(loadIdentity);
-  const [saved, setSaved] = useState<HostRecord | null>(loadHostSession);
+  const [saved, setSaved] = useState<Saved>(loadSaved);
   const [status, setStatus] = useState<SessionStatus>({ status: "home" });
   const [live, setLive] = useState<Live | null>(null);
 
@@ -110,19 +117,21 @@ export function useSession(data: GameData): Session {
     };
     const current = (token: number) => token === attempt.current;
 
-    /** El host de una sala guarda; el jugador no guarda nada de la partida. */
-    const hostOn = (state: SessionState, transport: Transport, shared: boolean): SessionRuntime => {
-      saveHostSession({ shared, state });
-      setSaved({ shared, state });
-      return createHost({
+    /** El host guarda en su cajón; el jugador no guarda nada de la partida. Todavía no escribe
+     *  nada: si el pedido ya quedó viejo, este runtime se descarta sin haber pisado nada. */
+    const hostOn = (state: SessionState, transport: Transport, slot: Slot): SessionRuntime =>
+      createHost({
         state,
         transport,
         onChange: (next) => {
-          const record = { shared, state: next };
-          saveHostSession(record);
-          setSaved(record);
+          saveHostSession(slot, next);
+          setSaved((it) => ({ ...it, [slot]: next }));
         },
       });
+
+    const keep = (slot: Slot, state: SessionState) => {
+      saveHostSession(slot, state);
+      setSaved((it) => ({ ...it, [slot]: state }));
     };
 
     return {
@@ -135,9 +144,9 @@ export function useSession(data: GameData): Session {
           identity.name || "Vos",
           Date.now(),
         );
-        const runtime = hostOn(state, createNullTransport(), false);
-        runtime.start(buildToponyms(data));
+        const runtime = hostOn(state, createNullTransport(), "solo");
         if (!current(token)) return runtime.stop();
+        runtime.start(buildToponyms(data));
         setLive({ runtime, role: "host", code: null });
         setStatus({ status: "playing" });
       },
@@ -148,8 +157,9 @@ export function useSession(data: GameData): Session {
         void createRoom(identity.deviceId)
           .then(({ code, transport }) => {
             const state = createSession(code, identity.deviceId, name, Date.now());
-            const runtime = hostOn(state, transport, true);
+            const runtime = hostOn(state, transport, "room");
             if (!current(token)) return runtime.stop();
+            keep("room", state);
             setIdentity(rememberRoom(rememberName(identity, name), code));
             setLive({ runtime, role: "host", code });
             setStatus({ status: "playing" });
@@ -175,18 +185,19 @@ export function useSession(data: GameData): Session {
           });
       },
 
-      resume() {
-        const record = loadHostSession();
-        if (!record) return;
-        const token = begin(record.shared ? "Reabriendo la sala…" : "Retomando la partida…");
-        const transport = record.shared
-          ? openRoom(record.state.code, "host", identity.deviceId)
+      resume(slot: Slot) {
+        const state = loadHostSession(slot);
+        if (!state) return;
+        const shared = slot === "room";
+        const token = begin(shared ? "Reabriendo la sala…" : "Retomando la partida…");
+        const transport = shared
+          ? openRoom(state.code, "host", identity.deviceId)
           : Promise.resolve<Transport>(createNullTransport());
         void transport
           .then((it) => {
-            const runtime = hostOn(record.state, it, record.shared);
+            const runtime = hostOn(state, it, slot);
             if (!current(token)) return runtime.stop();
-            setLive({ runtime, role: "host", code: record.shared ? record.state.code : null });
+            setLive({ runtime, role: "host", code: shared ? state.code : null });
             setStatus({ status: "playing" });
             // Difundir al reabrir es lo que pone al día a quienes quedaron esperando.
             runtime.refresh();
@@ -196,9 +207,15 @@ export function useSession(data: GameData): Session {
           });
       },
 
-      forgetSaved() {
-        clearHostSession();
-        setSaved(null);
+      forgetSaved(slot: Slot) {
+        const state = loadHostSession(slot);
+        clearHostSession(slot);
+        setSaved((it) => ({ ...it, [slot]: null }));
+        // Olvidar la sala que uno mismo hosteaba también borra el atajo para volver a ella:
+        // si no, el inicio ofrecería entrar como jugador a una sala que ya no tiene host.
+        if (state && identity.lastRoomCode === state.code) {
+          setIdentity(rememberRoom(identity, null));
+        }
       },
 
       goHome() {
@@ -210,7 +227,7 @@ export function useSession(data: GameData): Session {
         if (liveRef.current?.role === "guest") setIdentity(rememberRoom(identity, null));
         setLive(null);
         setStatus({ status: "home" });
-        setSaved(loadHostSession());
+        setSaved(loadSaved());
       },
 
       dismissError() {
