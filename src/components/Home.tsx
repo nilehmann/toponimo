@@ -118,7 +118,8 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
     );
   }
 
-  const joinable = mode === "join" && !isValidCode(clean);
+  // Entrar necesita un código que nombre una sala; crear, solo un nombre.
+  const blocked = !trimmed || (mode === "join" && !isValidCode(clean));
   return (
     <form onSubmit={submit} className="flex w-full max-w-xs flex-col gap-4">
       <h2 className="text-xl font-extrabold">
@@ -143,7 +144,11 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
         maxLength={NAME_LIMIT}
         autoFocus={mode === "create" || invited !== null}
       />
-      <button type="submit" disabled={!trimmed || joinable} className={`${BUTTON_SIGN} disabled:cursor-not-allowed disabled:opacity-50`}>
+      <button
+        type="submit"
+        disabled={blocked}
+        className={`${BUTTON_SIGN} disabled:cursor-not-allowed disabled:opacity-50`}
+      >
         {mode === "create" ? "Crear la sala" : "Entrar"}
       </button>
       <button type="button" onClick={() => setMode("menu")} className={BUTTON_GHOST}>

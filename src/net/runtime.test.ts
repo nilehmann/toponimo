@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fakeToponyms } from "../game/fixtures";
-import { createSession, guessOf, phase, revealedToponym, score } from "../game/session";
+import { createSession, guessOf, phase, project, revealedToponym, score } from "../game/session";
 import { ROUNDS } from "../game/toponyms";
 import type { Guess, PlayerId, Snapshot } from "../game/types";
 import { createClient } from "./client";
@@ -504,6 +504,27 @@ describe("una partida entera en grupo", () => {
     expect(gameOf(ana).rounds).toHaveLength(1);
     expect(phase(gameOf(ana))).toBe("answering");
     expect(JSON.stringify(snapshotOf(ana))).not.toContain("Real 0-");
+  });
+});
+
+describe("gana la versión más alta", () => {
+  it("un snapshot rezagado se descarta sin efecto", async () => {
+    const bus = createLoopback();
+    const host = bus.host();
+    host.connect({ onClientMessage: () => {}, onHostMessage: () => {} });
+    const ana = createClient({ transport: bus.client("da"), deviceId: "da", name: "Ana" });
+    await settle();
+
+    const state = createSession("2345678", "dh", "Nico", 0);
+    const alDia = { ...project(state), version: 9 };
+    host.broadcast({ t: "welcome", deviceId: "da", playerId: "2", state: alDia });
+    await settle();
+    expect(snapshotOf(ana).version).toBe(9);
+
+    host.broadcast({ t: "snapshot", state: { ...alDia, version: 4, code: "VIEJO12" } });
+    await settle();
+    expect(snapshotOf(ana).version).toBe(9);
+    expect(snapshotOf(ana).code).toBe("2345678");
   });
 });
 

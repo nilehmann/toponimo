@@ -14,8 +14,8 @@ import { type AnyGame, answered, guessOf, phase, revealedToponym, score } from "
 import { ROUNDS } from "./game/toponyms";
 import type { PlayerId, Snapshot } from "./game/types";
 import type { Session } from "./hooks/useSession";
-import type { SessionView } from "./net/runtime";
 import type { ThemePref } from "./hooks/useTheme";
+import type { SessionView } from "./net/runtime";
 
 /** Quiénes no acusaron el último cambio que había que acusar. El host cuenta siempre al día:
  *  es de donde sale la verdad. Un ack prueba que llegó, no que siga ahí, así que esto es
@@ -73,7 +73,7 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [answering, session]);
+  }, [answering, session.answer]);
 
   if (!snapshot) {
     return (
@@ -110,7 +110,7 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
         ) : null
       }
     >
-      {where === "lobby" || !game ? (
+      {where === "lobby" || !game || !round ? (
         <Lobby
           snapshot={snapshot}
           me={me}
@@ -134,7 +134,7 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
 
           <Ticks game={game} me={me} />
           <Sign
-            name={round!.toponym.name}
+            name={round.toponym.name}
             revealed={toponym !== null}
             real={toponym?.real ?? false}
             comuna={toponym?.real ? toponym.comuna : undefined}
