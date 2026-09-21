@@ -21,7 +21,7 @@ import type { SessionState } from "./types";
 const HOST_DEVICE = "device-host";
 
 function fresh(): SessionState {
-  return createSession("A234567", HOST_DEVICE, "Nico", 1000);
+  return createSession("2345678", HOST_DEVICE, "Nico", 1000);
 }
 
 function run(state: SessionState, ...actions: Action[]): SessionState {
