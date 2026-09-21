@@ -23,10 +23,10 @@ host revela o avanza, y cuando alguien llega o se va. No hay latidos ni sondeo: 
 la siguiente no circula nada.
 
 **Automático solo donde la persona no tiene palanca.** Se reintenta solo lo que nadie puede
-arreglar mirando la pantalla: que no llegues a entrar, o que te pierdas un reveal. Lo demás lleva un
-botón. Esto se juega en una mesa, con todos hablándose: cuando el host dice que faltan dos y vos ya
-respondiste, el problema está a la vista y alguien lo dice en voz alta. Un temporizador ahí no
-agrega nada que el grupo no vea antes.
+arreglar mirando la pantalla: que no llegues a entrar, o que te pierdas un reveal. Para todo lo
+demás hay un botón de refrescar. Esto se juega en una mesa, con todos hablándose: cuando el host
+dice que faltan dos y vos ya respondiste, el problema está a la vista y alguien lo dice en voz alta.
+Un temporizador ahí no agrega nada que el grupo no vea antes.
 
 ## El estado
 
@@ -91,9 +91,11 @@ interface SessionState {
 }
 
 /** Lo que el cliente ve de una ronda. El letrero se destapa recién al revelar. */
-type PublicRound =
-  | { revealed: false; name: string; answered: PlayerId[] }
-  | { revealed: true; toponym: Toponym; guesses: Record<PlayerId, Guess> };
+interface PublicRound {
+  /** Solo el nombre hasta que el host revela; ahí llega el letrero entero. */
+  toponym: { name: string } | Toponym;
+  guesses: Record<PlayerId, Guess>;
+}
 
 /** La partida como viaja: sin las rondas que todavía no se juegan. */
 type PublicGame = Omit<Game, "rounds"> & { rounds: PublicRound[] };
@@ -109,16 +111,19 @@ Una es el tamaño. `history` son partidas terminadas que ningún cliente muestra
 mapa que reconoce a quien vuelve: los dos son asunto del host. Dejarlos fuera del cable mantiene la
 difusión chica, y con ella barata la redundancia de mandar el estado entero en cada cambio.
 
-La otra es no repartir las respuestas. `rounds` se recorta en `current + 1`, así que las rondas que
-faltan no viajan; y de la ronda en curso solo va el nombre del letrero hasta que el host revela. Las
-respuestas ajenas tampoco: antes del reveal se manda `answered`, quiénes respondieron, sin qué. Eso
-le alcanza al jugador para ver su propia respuesta confirmada y soltar la pendiente, y al host para
-su contador, sin que nadie sepa qué eligió el otro.
+La otra es no repartir el resultado por adelantado. `rounds` se recorta en `current + 1`, así que
+las rondas que faltan no viajan, y de la ronda en curso va el nombre del letrero sin su `real` hasta
+que el host revela. Eso es lo que importaba: sin el recorte, el estado que llega a cada teléfono
+trae la respuesta de las quince rondas antes de jugarlas.
+
+Las `guesses` sí viajan siempre, también antes del reveal. Es lo que permite que un cliente vea su
+propia elección marcada después de refrescar, y al host armar la lista de quién respondió. El precio
+es que quien abra el estado puede ver qué eligieron los demás en la ronda en curso — una ventana de
+segundos, sobre algo que se destapa igual, y en la misma categoría de lo ya asumido en «el juego es
+trampeable».
 
 Esto **no** hace el juego menos trampeable: `game_data.json` sigue estando entero en cada teléfono y
-quien quiera buscar el letrero que tiene al frente puede hacerlo. Lo que evita es lo que no cuesta
-nada — leerse las respuestas en el estado del propio dispositivo, y ver qué contestaron los demás
-antes de que se destape.
+quien quiera buscar el letrero que tiene al frente puede hacerlo.
 
 El snapshot sigue siendo absoluto: es una proyección del estado, no un delta. Aplicarlo dos veces no
 cambia nada y llegar atrasado se arregla con el siguiente.
@@ -206,9 +211,11 @@ type HostMessage =
    reutiliza dentro de una sala aunque alguien se vaya, para que el historial siga siendo legible.
    El host se queda con el `1` al crear la sala, y jugando solo ese es el único que existe. El
    cliente no puede mandar nada más hasta que el host le diga quién es.
-7. **Una respuesta sin confirmar se reenvía a mano.** El cliente sabe que el host lo escuchó
-   cuando su `PlayerId` aparece en el `answered` de esa ronda. Si no aparece, la UI lo muestra y
-   ofrece reenviar; no hay reintento automático. Reenviar es inofensivo por la regla 3.
+7. **Refrescar es volver a preguntar.** El cliente tiene un botón que manda `hello` y repinta
+   todo con el `welcome` que llega. Si el host nunca recibió tu respuesta, el estado vuelve sin
+   ella y los botones quedan deseleccionados: respondés de nuevo con el mismo botón de siempre. No
+   hay reenvío automático ni un control aparte para reintentar — el reenvío de una respuesta es,
+   simplemente, volver a responder.
 8. **`bye` saca de `participants`, no de `players`.** Quien avisa que se va deja de aparecer en
    la lista de quién respondió, pero sigue en `players` con sus respuestas intactas y en el
    marcador de la partida. Si vuelve con `hello`, se repone. El host nunca se saca a sí mismo, que
@@ -219,14 +226,15 @@ type HostMessage =
 ### Una ronda
 
 1. El host muestra el letrero. Todos están en la misma versión.
-2. Un jugador toca **Existe** o **Inventado**. La UI marca su elección de inmediato y la guarda
-   en el registro local; manda `answer`.
-3. El host la registra, sube la versión y difunde. El cliente se encuentra en `answered` y marca
-   su elección como confirmada. Si no se ve ahí, lo dice y ofrece un botón para reenviar.
-4. El host ve la lista de jugadores con una marca en quienes respondieron. El botón de revelar
-   está siempre activo: decide él, no un reloj ni un quórum. Quien no respondió queda sin acierto
-   en esa ronda. Esa lista la puede armar cualquiera desde `answered`; mostrarla o no al jugador
-   es una decisión de interfaz, no de protocolo.
+2. Un jugador toca **Existe** o **Inventado**. La UI marca su elección de inmediato; manda
+   `answer`.
+3. El host la registra, sube la versión y difunde. El cliente se encuentra en las `guesses` de la
+   ronda y la elección queda marcada. Si el `answer` se perdió, el snapshot vuelve sin ella y los
+   botones se deseleccionan solos: se ve en la pantalla y se responde de nuevo.
+4. El host ve la lista de jugadores con una marca en quienes respondieron, que sale de las claves
+   de `guesses`. El botón de revelar está siempre activo: decide él, no un reloj ni un quórum.
+   Quien no respondió queda sin acierto en esa ronda. Esa lista la puede armar cualquiera;
+   mostrarla o no al jugador es una decisión de interfaz, no de protocolo.
 5. Al revelar, `revealed` pasa a `true`, sube la versión y se difunde. Todos ven el resultado y
    quién cayó.
 6. El host avanza. El botón muestra *"4 de 5 al día"* — cuántos acusaron recibo del reveal — y
@@ -251,27 +259,18 @@ interface HostRuntime {
   acked: Record<PlayerId, number>;
   retries: Record<PlayerId, { version: number; attempt: number }>;
 }
-
-/** Solo en el cliente. `answer` se persiste; `version` es efímera. */
-interface ClientRuntime {
-  /** Última versión aplicada. */
-  version: number;
-  /** Lo que respondí en la ronda en curso. Se confirma al verme en `answered`. */
-  answer: { gameNumber: number; round: RoundIndex; guess: Guess } | null;
-}
 ```
+
+El cliente, del otro lado, no guarda nada: le basta con la última versión que aplicó, en memoria,
+para descartar los snapshots rezagados. Todo lo que muestra —incluida su propia elección— sale del
+último snapshot.
 
 Solo esas dos versiones se acusan porque son las únicas donde perderse un snapshot deja a alguien
 tirado sin saberlo: con los botones en pantalla mientras el resto ya vio el resultado, o en la ronda
 anterior. El snapshot que solo agrega una respuesta ajena no cambia nada de lo que estás mirando, y
 el siguiente lo deja al día de todos modos. A quien sí le importa —el que acaba de responder— le
-basta con no verse en `answered` y tocar reenviar. Con ocho jugadores esto son unos dieciséis acks
-por ronda en vez de sesenta y cuatro.
-
-El registro local se persiste por dos razones, y la segunda apareció al dejar de repartir las
-respuestas: sirve para reenviar, y sirve para pintarte tu propia elección al volver. `answered` dice
-*que* respondiste, no *qué*, así que sin ese registro un cliente que recarga sabría que ya contestó
-pero no podría mostrarte qué elegiste.
+basta con refrescar. Con ocho jugadores esto son unos dieciséis acks por ronda en vez de sesenta y
+cuatro.
 
 Tras difundir la versión N, el host reenvía a quien no haya acusado, por su topic personal para no
 repetirle el mensaje a toda la sala, a los 2, 4 y 8 segundos. Al tercer intento sin respuesta se
@@ -285,9 +284,9 @@ para el host, no un permiso: los botones de revelar y avanzar nunca se bloquean.
 ### Reconectarse
 
 Quien cierra la app y vuelve conserva su `DeviceId`, manda `hello` y recibe su `PlayerId` junto al
-estado entero. Vuelve como el mismo jugador, con sus respuestas intactas, no
-como uno nuevo. Si tenía una respuesta sin confirmar, la UI se la muestra con el botón de
-reenviar, igual que si nunca hubiera cerrado la app.
+estado entero. Vuelve como el mismo jugador, con sus respuestas intactas, no como uno nuevo: si
+había respondido la ronda en curso, su elección viene en las `guesses` y la UI la pinta marcada; si
+no, los botones están libres.
 
 El cliente además manda `hello` cada vez que la pestaña vuelve a primer plano, escuchando
 `visibilitychange`. Ese es el caso real —el teléfono guardado en el bolsillo— y es el único
@@ -392,22 +391,20 @@ invitárselo, pero existir siempre es lo que permite que no haya ningún campo d
 | Quién | Qué guarda |
 |---|---|
 | Host | `SessionState` completo. Es la única copia autoritativa. |
-| Jugador | Su identidad y la respuesta que todavía no le confirman. |
+| Jugador | Solo su identidad. Nada de la partida. |
 
 ```ts
 interface Identity {
   deviceId: DeviceId;
   name: string;
   lastRoomCode: RoomCode | null;
-  /** Lo que respondí en la ronda en curso. Persiste para poder mostrarlo y reenviarlo. */
-  answer: { gameNumber: number; round: RoundIndex; guess: Guess } | null;
 }
 ```
 
-Un jugador no guarda el estado de la partida: al volver lo pide, y así nunca muestra algo viejo como
-si fuera actual. Lo único suyo que persiste es la respuesta sin confirmar, porque es lo único que se
-perdería para siempre si cierra la app en el momento justo. Tampoco guarda su `PlayerId`: se lo dice
-el host en cada `hello`, que es lo correcto porque es el host quien lo reparte.
+Un jugador no guarda nada de la partida: al volver la pide entera, y así nunca muestra algo viejo
+como si fuera actual. Ni siquiera su propia respuesta — viaja en las `guesses`, así que el host se
+la devuelve y no hay dos copias que puedan discrepar. Tampoco guarda su `PlayerId`: se lo dice el
+host en cada `hello`, que es lo correcto porque es el host quien lo reparte.
 
 El `DeviceId` no se redistribuye: el host nunca lo pone en un snapshot, así que lo que ven los
 demás es el `PlayerId`, que no significa nada fuera de esa sala y no permite reconocerte en la
@@ -422,11 +419,15 @@ del diseño ya asume.
 |---|---|---|
 | Inicio | Jugar solo · Crear sala · Entrar con código | |
 | Lobby | Código, QR, link, lista de jugadores, **Empezar** | Lista de jugadores, espera |
-| Respondiendo | Letrero, sus botones, la lista con quién respondió, **Revelar** | Letrero, sus botones, si el host lo escuchó |
+| Respondiendo | Letrero, sus botones, la lista con quién respondió, **Revelar** | Letrero, sus botones |
 | Revelado | Resultado, quién respondió qué, *"4 de 5 al día"*, **Siguiente** | Resultado y quién cayó |
 | Resumen | Marcador, las 15 rondas, **Jugar otra ruta** | Marcador y las 15 rondas |
 
 El host también juega: está en `players` y su respuesta cuenta.
+
+En todas las pantallas del jugador hay un **refrescar**, que manda `hello` y repinta con lo que
+conteste el host. Es la única herramienta que necesita: si respondió y el host no la tiene, refresca
+y el botón vuelve a estar libre para tocarlo.
 
 El jugador ve la lista de `players`, pero no quién sigue conectado: eso vive en el `acked` del host,
 que es efímero y no se difunde. De conexión muestra solo lo suyo —si alcanza al host o no, que sabe
@@ -476,6 +477,11 @@ React, y es el mismo en los dos modos.
 **El juego es trampeable.** `game_data.json` se descarga entero en cada teléfono con las listas de
 nombres reales e inventados. Cualquiera puede buscar el letrero que tiene al frente. No hay defensa
 posible mientras los datos sean un archivo estático público, así que no se intenta ninguna.
+
+**Las respuestas de la ronda en curso se ven antes del reveal.** Viajan en cada snapshot, que es lo
+que permite refrescar y recuperar la propia. La interfaz no las muestra hasta que el host revela,
+pero están ahí para quien abra el estado. Es una ventana de segundos sobre algo que se destapa
+igual.
 
 **Confianza total dentro de la sala.** Quien tenga el código puede publicar haciéndose pasar por
 otro, o por el host: nada va firmado y el host no tiene cómo verificar el `playerId` que viene en un
