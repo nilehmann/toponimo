@@ -1,5 +1,34 @@
-Ver README.md para el método.
+Ver README.md para el método. El diseño del modo en grupo está en `docs/multijugador.md` y es la
+referencia: si el código y ese documento no coinciden, hay que arreglar uno de los dos.
 
-- Tras editar `src/`: `npm run build` (corre `tsc` y luego Vite). Tras editar `scripts/`: `npm run data && npm run build`.
-- Los colores son tokens de `@theme` en `src/index.css`; el tema oscuro solo redefine esas variables en `:root[data-theme="dark"]`. No hace falta `dark:` en las utilidades.
-- Al tocar los filtros de `build_fake.py`, revisar a mano una muestra de inventados: los filtros son heurísticos y los fallos típicos son palabras comunes o casi copias de nombres reales.
+- Tras editar `src/`: `npm run build` (corre `tsc`, las pruebas y luego Vite). Tras editar
+  `scripts/`: `npm run data && npm run build`. Las pruebas solas: `npm test`.
+- Los colores son tokens de `@theme` en `src/index.css`; el tema oscuro solo redefine esas variables
+  en `:root[data-theme="dark"]`. No hace falta `dark:` en las utilidades.
+- Al tocar los filtros de `build_fake.py`, revisar a mano una muestra de inventados: los filtros son
+  heurísticos y los fallos típicos son palabras comunes o casi copias de nombres reales.
+
+## Cómo está armado el modo en grupo
+
+- `game/session.ts` es un reducer puro sobre `SessionState`. Devolver el mismo estado significa
+  «esto no cambia nada»: ni sube la versión ni se difunde. Toda acción que dependa del reloj recibe
+  su `at`, para que el reducer no lea `Date.now()`.
+- El protocolo vive en `net/host.ts` y `net/client.ts`, TypeScript puro sin React. Ahí están los
+  reenvíos y los reintentos, y por eso se prueban enteros con relojes falsos en
+  `net/runtime.test.ts`. `hooks/useSession.ts` es solo el enganche a React.
+- `net/ack.ts` tiene **una sola** regla de cuándo hace falta un acuse, usada por los dos lados: el
+  host arma los reenvíos con ella y el cliente decide con ella cuándo acusar. Si se separaran,
+  podría quedar un reenvío que nadie va a acusar nunca.
+- Estar al día se mide contra `awaited` (la última versión que había que acusar), no contra
+  `version`: una respuesta ajena también sube la versión y nadie la acusa.
+- Un snapshot de versión **menor** se descarta; uno de la **misma** versión repinta igual. Eso es lo
+  que hace que refrescar sirva cuando el host no tiene nada nuevo que contar, que es justo el caso
+  para el que existe ese botón.
+- El `welcome` repite el `deviceId` que saludó. Va por el topic de todos, y quien recién llega no
+  tiene otra forma de reconocer que es suyo: su `PlayerId` es lo que ese mensaje viene a entregarle.
+- `storage/session.ts` guarda `{ shared, state }`. El `shared` no es parte del estado —ahí no hay
+  ningún campo de modo— sino lo que hace falta al reabrir para saber qué transporte levantar: una
+  sala recién creada y una partida en solitario se ven idénticas en el estado.
+- Probar con dos pestañas: `?transporte=local` usa `BroadcastChannel` y manda la identidad a
+  `sessionStorage`, porque el `localStorage` es uno solo por máquina y las dos pestañas serían el
+  mismo dispositivo.
