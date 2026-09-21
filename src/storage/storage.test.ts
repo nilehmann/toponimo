@@ -61,8 +61,16 @@ describe("sesión del host", () => {
 
   it("vuelve igual de como se guardó, con history y devices", () => {
     const saved = state();
-    saveHostSession(saved);
-    expect(loadHostSession()).toEqual(saved);
+    saveHostSession({ shared: true, state: saved });
+    expect(loadHostSession()).toEqual({ shared: true, state: saved });
+  });
+
+  it("recuerda si la sala era compartida, que no se puede deducir del estado", () => {
+    const solo = createSession("2345678", "d", "Vos", 10);
+    saveHostSession({ shared: false, state: solo });
+    expect(loadHostSession()?.shared).toBe(false);
+    saveHostSession({ shared: true, state: solo });
+    expect(loadHostSession()?.shared).toBe(true);
   });
 
   it("no hay nada guardado antes de la primera sala", () => {
@@ -72,7 +80,7 @@ describe("sesión del host", () => {
   it("descarta lo que no cumple los invariantes en vez de difundirlo", () => {
     const broken = state();
     broken.game!.rounds = broken.game!.rounds.slice(0, 3);
-    saveHostSession(broken);
+    saveHostSession({ shared: true, state: broken });
     expect(loadHostSession()).toBeNull();
   });
 
@@ -81,10 +89,12 @@ describe("sesión del host", () => {
     expect(loadHostSession()).toBeNull();
     localStorage.setItem("toponimo:host", '{"version":1}');
     expect(loadHostSession()).toBeNull();
+    localStorage.setItem("toponimo:host", JSON.stringify(state()));
+    expect(loadHostSession()).toBeNull();
   });
 
   it("se puede borrar", () => {
-    saveHostSession(state());
+    saveHostSession({ shared: true, state: state() });
     clearHostSession();
     expect(loadHostSession()).toBeNull();
   });
