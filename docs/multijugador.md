@@ -19,9 +19,14 @@ propio host y no se conecta a ninguna parte. Mismo estado, mismo reducer, misma 
 resumen. No existe un campo que diga en qué modo estamos.
 
 **Nada depende de una conexión permanente.** Se manda un mensaje cuando alguien responde, cuando el
-host revela o avanza, y cuando alguien llega o se va; cada uno arrastra su acuse de recibo y, si
-hace falta, unos pocos reintentos acotados. No hay latidos ni sondeo: entre una acción y la
-siguiente no circula nada.
+host revela o avanza, y cuando alguien llega o se va. No hay latidos ni sondeo: entre una acción y
+la siguiente no circula nada.
+
+**Automático solo donde la persona no tiene palanca.** Se reintenta solo lo que nadie puede
+arreglar mirando la pantalla: que no llegues a entrar, o que te pierdas un reveal. Lo demás lleva un
+botón. Esto se juega en una mesa, con todos hablándose: cuando el host dice que faltan dos y vos ya
+respondiste, el problema está a la vista y alguien lo dice en voz alta. Un temporizador ahí no
+agrega nada que el grupo no vea antes.
 
 ## El estado
 
@@ -59,7 +64,7 @@ interface Game {
   /** Correlativo dentro de la sala: 1, 2, 3… */
   number: number;
   rounds: Round[];
-  /** Quiénes cuentan ahora para *"3 de 5 respondieron"*. Crece al entrar, se achica con `bye`. */
+  /** Quiénes cuentan ahora en la lista de respuestas. Crece al entrar, se achica con `bye`. */
   participants: PlayerId[];
   /** La ronda en pantalla. Al terminar se queda en 14: el fin lo marca `finishedAt`. */
   current: RoundIndex;
@@ -201,27 +206,27 @@ type HostMessage =
    reutiliza dentro de una sala aunque alguien se vaya, para que el historial siga siendo legible.
    El host se queda con el `1` al crear la sala, y jugando solo ese es el único que existe. El
    cliente no puede mandar nada más hasta que el host le diga quién es.
-7. **El cliente reenvía lo que no ve confirmado.** Una respuesta se reenvía a los 2, 4 y 8 segundos
-   mientras su `PlayerId` no aparezca en el `answered` de esa ronda.
-8. **`bye` saca de `participants`, no de `players`.** Quien avisa que se va deja de contar en
-   *"3 de 5 respondieron"*, pero sigue en `players` con sus respuestas intactas y en el marcador de
-   la partida. Si vuelve con `hello`, se repone. El host nunca se saca a sí mismo, que es lo que
-   mantiene el invariante. Que un `bye` no llegue —en el teléfono no hay evento de cierre
-   confiable— no rompe nada: el contador queda inflado y el host revela igual, que es justamente
-   para lo que ese botón nunca se bloquea.
+7. **Una respuesta sin confirmar se reenvía a mano.** El cliente sabe que el host lo escuchó
+   cuando su `PlayerId` aparece en el `answered` de esa ronda. Si no aparece, la UI lo muestra y
+   ofrece reenviar; no hay reintento automático. Reenviar es inofensivo por la regla 3.
+8. **`bye` saca de `participants`, no de `players`.** Quien avisa que se va deja de aparecer en
+   la lista de quién respondió, pero sigue en `players` con sus respuestas intactas y en el
+   marcador de la partida. Si vuelve con `hello`, se repone. El host nunca se saca a sí mismo, que
+   es lo que mantiene el invariante. Que un `bye` no llegue —en el teléfono no hay evento de
+   cierre confiable— no rompe nada: queda una fila esperando en la lista y el host revela igual,
+   que es justamente para lo que ese botón nunca se bloquea.
 
 ### Una ronda
 
 1. El host muestra el letrero. Todos están en la misma versión.
-2. Un jugador toca **Existe** o **Inventado**. La UI marca su elección de inmediato y guarda la
-   respuesta como pendiente; manda `answer`.
-3. El host la registra, sube la versión y difunde. El cliente se encuentra en `answered` y suelta
-   la pendiente. Mientras no se vea ahí, la reenvía: sin eso, un `answer` perdido no se notaría
-   hasta el reveal, cuando ya no tiene arreglo.
-4. El host ve *"3 de 5 respondieron"*, que sale del largo de `answered`. El botón de revelar está
-   siempre activo: decide él, no un reloj ni un quórum. Quien no respondió queda sin acierto en esa
-   ronda. Ese contador lo puede calcular cualquiera; mostrárselo o no al jugador es una decisión de
-   interfaz, no de protocolo.
+2. Un jugador toca **Existe** o **Inventado**. La UI marca su elección de inmediato y la guarda
+   en el registro local; manda `answer`.
+3. El host la registra, sube la versión y difunde. El cliente se encuentra en `answered` y marca
+   su elección como confirmada. Si no se ve ahí, lo dice y ofrece un botón para reenviar.
+4. El host ve la lista de jugadores con una marca en quienes respondieron. El botón de revelar
+   está siempre activo: decide él, no un reloj ni un quórum. Quien no respondió queda sin acierto
+   en esa ronda. Esa lista la puede armar cualquiera desde `answered`; mostrarla o no al jugador
+   es una decisión de interfaz, no de protocolo.
 5. Al revelar, `revealed` pasa a `true`, sube la versión y se difunde. Todos ven el resultado y
    quién cayó.
 6. El host avanza. El botón muestra *"4 de 5 al día"* — cuántos acusaron recibo del reveal — y
@@ -236,7 +241,8 @@ MQTT no ofrece confirmación extremo a extremo: el PUBACK de QoS 1 lo manda el b
 suscriptor. Como el broker es público y sin garantías, un snapshot perdido dejaría a alguien pegado
 en la ronda anterior **en silencio**, sin nada que lo despierte a preguntar.
 
-Por eso cada cliente responde con `ack` de la versión que aplicó, y el host lleva la cuenta:
+Por eso el cliente responde con `ack` de la versión que aplicó **cuando esa versión es un reveal o
+un avance de ronda**, y el host lleva la cuenta:
 
 ```ts
 /** Efímero, solo en el host. No se persiste. */
@@ -246,14 +252,26 @@ interface HostRuntime {
   retries: Record<PlayerId, { version: number; attempt: number }>;
 }
 
-/** Solo en el cliente. `pending` se persiste; `version` es efímera. */
+/** Solo en el cliente. `answer` se persiste; `version` es efímera. */
 interface ClientRuntime {
   /** Última versión aplicada. */
   version: number;
-  /** Respuesta enviada y todavía no confirmada. Se reenvía hasta verla en un snapshot. */
-  pending: { gameNumber: number; round: RoundIndex; guess: Guess } | null;
+  /** Lo que respondí en la ronda en curso. Se confirma al verme en `answered`. */
+  answer: { gameNumber: number; round: RoundIndex; guess: Guess } | null;
 }
 ```
+
+Solo esas dos versiones se acusan porque son las únicas donde perderse un snapshot deja a alguien
+tirado sin saberlo: con los botones en pantalla mientras el resto ya vio el resultado, o en la ronda
+anterior. El snapshot que solo agrega una respuesta ajena no cambia nada de lo que estás mirando, y
+el siguiente lo deja al día de todos modos. A quien sí le importa —el que acaba de responder— le
+basta con no verse en `answered` y tocar reenviar. Con ocho jugadores esto son unos dieciséis acks
+por ronda en vez de sesenta y cuatro.
+
+El registro local se persiste por dos razones, y la segunda apareció al dejar de repartir las
+respuestas: sirve para reenviar, y sirve para pintarte tu propia elección al volver. `answered` dice
+*que* respondiste, no *qué*, así que sin ese registro un cliente que recarga sabría que ya contestó
+pero no podría mostrarte qué elegiste.
 
 Tras difundir la versión N, el host reenvía a quien no haya acusado, por su topic personal para no
 repetirle el mensaje a toda la sala, a los 2, 4 y 8 segundos. Al tercer intento sin respuesta se
@@ -268,12 +286,15 @@ para el host, no un permiso: los botones de revelar y avanzar nunca se bloquean.
 
 Quien cierra la app y vuelve conserva su `DeviceId`, manda `hello` y recibe su `PlayerId` junto al
 estado entero. Vuelve como el mismo jugador, con sus respuestas intactas, no
-como uno nuevo. Si tenía una respuesta sin confirmar, la reenvía apenas sabe quién es.
+como uno nuevo. Si tenía una respuesta sin confirmar, la UI se la muestra con el botón de
+reenviar, igual que si nunca hubiera cerrado la app.
 
 El cliente además manda `hello` cada vez que la pestaña vuelve a primer plano, escuchando
 `visibilitychange`. Ese es el caso real —el teléfono guardado en el bolsillo— y es el único
 disparador del lado del cliente: fuera de eso, quien quedó atrasado depende de los reenvíos del
-host. Si el `hello` no obtiene respuesta en unos segundos, la UI muestra que no alcanza al host.
+host. El `hello` sí se reintenta solo, a los 2, 4 y 8 segundos, y al tercero la UI muestra que no
+alcanza al host: es el único caso donde la persona no tiene ni señal ni palanca — sin respuesta no
+sabe siquiera si está en la sala, así que no hay nada que pueda tocar.
 
 Si el host cierra la app, la partida queda congelada: nadie puede avanzar, porque nadie más tiene
 autoridad. Su estado está en `localStorage`, así que al reabrir retoma exactamente donde iba y
@@ -378,8 +399,8 @@ interface Identity {
   deviceId: DeviceId;
   name: string;
   lastRoomCode: RoomCode | null;
-  /** Respuesta mandada y no confirmada. Persiste para poder reenviarla tras cerrar la app. */
-  pending: { gameNumber: number; round: RoundIndex; guess: Guess } | null;
+  /** Lo que respondí en la ronda en curso. Persiste para poder mostrarlo y reenviarlo. */
+  answer: { gameNumber: number; round: RoundIndex; guess: Guess } | null;
 }
 ```
 
@@ -401,7 +422,7 @@ del diseño ya asume.
 |---|---|---|
 | Inicio | Jugar solo · Crear sala · Entrar con código | |
 | Lobby | Código, QR, link, lista de jugadores, **Empezar** | Lista de jugadores, espera |
-| Respondiendo | Letrero, sus botones, *"3 de 5 respondieron"*, **Revelar** | Letrero y sus botones |
+| Respondiendo | Letrero, sus botones, la lista con quién respondió, **Revelar** | Letrero, sus botones, si el host lo escuchó |
 | Revelado | Resultado, quién respondió qué, *"4 de 5 al día"*, **Siguiente** | Resultado y quién cayó |
 | Resumen | Marcador, las 15 rondas, **Jugar otra ruta** | Marcador y las 15 rondas |
 
@@ -420,23 +441,32 @@ y no una bandera de modo que haya que arrastrar por las props.
 
 ## Estructura
 
+Sobre lo que ya existe. En negrita lo que se agrega.
+
 ```
 src/
+  App.tsx          main.tsx   index.css
+  Game.tsx         pasa a leer la sesión en vez de su propio estado
   game/
-    types.ts       Toponym, Round, Player, Game, SessionState, Identity
-    toponyms.ts    pickToponyms(data) -> Toponym[]
-    session.ts     reducer, acciones y selectores derivados
-  net/
+    types.ts       se le suman Player, Game, SessionState, Identity
+    toponyms.ts    hoy rounds.ts
+    session.ts     **reducer, acciones y selectores derivados**
+  net/             **todo nuevo**
     transport.ts   la interfaz y los tipos de mensaje
     mqtt.ts        null.ts   loopback.ts   broadcast.ts
     code.ts        generación y validación del código
-  storage/
+  storage/         **todo nuevo**
     session.ts     persistencia del host
     identity.ts    persistencia del jugador
   hooks/
-    useSession.ts  une reducer, transporte y persistencia
-  components/
+    useGameData.ts useTheme.ts
+    useSession.ts  **une reducer, transporte y persistencia**
+  components/      Sign, Choices, Reveal, Ticks, Summary, ThemeToggle, ui
 ```
+
+Hay dos renombres en lo que ya existe. `game/rounds.ts` pasa a `toponyms.ts`, y el `Round` de hoy
+—nombre, si es real, comuna y región— pasa a llamarse `Toponym`, porque acá `Round` es otra cosa:
+el letrero más lo que respondió cada quien. `ROUNDS = 15` se queda donde está.
 
 El reducer de `session.ts` es una función pura sobre `SessionState`: no conoce el transporte ni
 React, y es el mismo en los dos modos.
@@ -466,6 +496,11 @@ autoritativa, y la salida es repartir un código nuevo y que todos entren de nue
 sortea siempre uno nuevo, así que es lo único que se puede hacer. Reusar el código viejo sería peor
 que empezar de cero: los clientes que quedaron en una versión alta descartarían cada snapshot de la
 sala nueva por traer una menor, y quedarían congelados sin ningún síntoma.
+
+**`history` no se recorta.** El host guarda todas las partidas de la sala en `localStorage`, una
+por vez, sin tope. Son unos pocos KB cada una contra megabytes disponibles, así que una tarde de
+juego no lo llena; una sala que viviera mucho más que eso, sí. No se poda porque el recorte tendría
+que decidir cuántas partidas vale la pena perder, y todavía no hay nada que las use.
 
 **Alrededor de ocho jugadores.** No por el protocolo, que es una estrella y manda pocos KB, sino
 porque más gente en una mesa deja de ser un juego de adivinar letreros.
