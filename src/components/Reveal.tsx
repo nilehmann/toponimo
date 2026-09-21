@@ -1,18 +1,18 @@
 import type { Ref } from "react";
 
-import type { Round } from "../game/types";
+import type { Toponym } from "../game/types";
 import { BUTTON_NEUTRAL } from "./ui";
 
 interface RevealProps {
-  round: Round;
+  toponym: Toponym;
   correct: boolean;
   last: boolean;
   onNext: () => void;
   ref?: Ref<HTMLButtonElement>;
 }
 
-export function Reveal({ round, correct, last, onNext, ref }: RevealProps) {
-  const verdict = round.real
+export function Reveal({ toponym, correct, last, onNext, ref }: RevealProps) {
+  const verdict = toponym.real
     ? correct
       ? "Correcto, existe."
       : "Existe."
@@ -24,8 +24,8 @@ export function Reveal({ round, correct, last, onNext, ref }: RevealProps) {
     <div className="mt-6">
       <p className={`text-xl font-extrabold ${correct ? "text-ok" : "text-miss"}`}>{verdict}</p>
       <p className="mt-1 mb-4">
-        {round.real
-          ? `Comuna de ${round.comuna}, ${round.region}.`
+        {toponym.real
+          ? `Comuna de ${toponym.comuna}, ${toponym.region}.`
           : "Este nombre no figura entre las localidades del Censo 2017."}
       </p>
       <button ref={ref} type="button" onClick={onNext} className={`${BUTTON_NEUTRAL} w-full`}>
