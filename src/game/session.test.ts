@@ -97,6 +97,14 @@ describe("join", () => {
     expect(state.game!.participants).toEqual(["1", "3", "4"]);
   });
 
+  it("quien llega con el resumen en pantalla juega la próxima", () => {
+    let state = run(withGuests("Ana"), start());
+    for (let i = 0; i < ROUNDS; i++) state = run(state, { type: "reveal" }, { type: "next", at: 1 });
+    state = run(state, { type: "join", deviceId: "tarde", name: "Caro" }, start(1));
+    expect(state.game!.participants).toEqual(["1", "2", "3"]);
+    expect(violations(state)).toEqual([]);
+  });
+
   it("mete a quien llega con la partida abierta", () => {
     const state = run(fresh(), start(), { type: "join", deviceId: "tarde", name: "Ana" });
     expect(state.game!.participants).toEqual(["1", "2"]);
