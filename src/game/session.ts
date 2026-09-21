@@ -94,7 +94,8 @@ function join(state: SessionState, deviceId: DeviceId, name: string): SessionSta
     version: state.version + 1,
     players: { ...state.players, [id]: player },
     devices: { ...state.devices, [deviceId]: id },
-    // Quien llega con una partida abierta entra a jugarla desde la ronda en curso.
+    // Entra a la sala aunque ya haya una partida abierta: la juega desde la ronda en curso, y
+    // el marcador le cuenta como no acertadas las rondas que no le tocaron.
     participants: [...state.participants, id],
   };
 }
