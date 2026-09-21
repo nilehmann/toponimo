@@ -7,6 +7,7 @@ import { createClient } from "../net/client";
 import { newCode } from "../net/code";
 import { createHost } from "../net/host";
 import { createNullTransport } from "../net/null";
+import { createRoom, openRoom } from "../net/open";
 import { EMPTY_VIEW, type SessionRuntime, type SessionView } from "../net/runtime";
 import type { Transport } from "../net/transport";
 import { loadIdentity, rememberName, rememberRoom } from "../storage/identity";
@@ -46,6 +47,17 @@ export interface Session {
   controls: SessionControls;
 }
 
+/** El enganche del runtime a React. Separado para que el banco de loopback arme sus asientos
+ *  con los mismos componentes que la aplicación. */
+export function useSessionView(runtime: SessionRuntime | null): SessionView {
+  const subscribe = useCallback(
+    (onChange: () => void) => runtime?.subscribe(onChange) ?? (() => {}),
+    [runtime],
+  );
+  const getView = useCallback(() => runtime?.getView() ?? EMPTY_VIEW, [runtime]);
+  return useSyncExternalStore(subscribe, getView, getView);
+}
+
 type Role = "host" | "guest";
 
 interface Live {
@@ -78,12 +90,7 @@ export function useSession(data: GameData): Session {
     return () => live?.runtime.stop();
   }, [live]);
 
-  const subscribe = useCallback(
-    (onChange: () => void) => live?.runtime.subscribe(onChange) ?? (() => {}),
-    [live],
-  );
-  const getView = useCallback(() => live?.runtime.getView() ?? EMPTY_VIEW, [live]);
-  const view = useSyncExternalStore(subscribe, getView, getView);
+  const view = useSessionView(live?.runtime ?? null);
 
   /** El teléfono guardado en el bolsillo es el caso real, y el único disparador del cliente. */
   useEffect(() => {
@@ -138,8 +145,7 @@ export function useSession(data: GameData): Session {
       createRoom(name: string) {
         const token = begin("Buscando un broker…");
         setIdentity(rememberName(identity, name));
-        void import("../net/mqtt")
-          .then(({ createRoom }) => createRoom(identity.deviceId))
+        void createRoom(identity.deviceId)
           .then(({ code, transport }) => {
             const state = createSession(code, identity.deviceId, name, Date.now());
             const runtime = hostOn(state, transport, true);
@@ -156,8 +162,7 @@ export function useSession(data: GameData): Session {
       joinRoom(code: RoomCode, name: string) {
         const token = begin("Entrando a la sala…");
         setIdentity(rememberName(identity, name));
-        void import("../net/mqtt")
-          .then(({ openRoom }) => openRoom(code, "client", identity.deviceId))
+        void openRoom(code, "client", identity.deviceId)
           .then((transport) => {
             const runtime = createClient({ transport, deviceId: identity.deviceId, name });
             if (!current(token)) return runtime.stop();
@@ -175,10 +180,8 @@ export function useSession(data: GameData): Session {
         if (!record) return;
         const token = begin(record.shared ? "Reabriendo la sala…" : "Retomando la partida…");
         const transport = record.shared
-          ? import("../net/mqtt").then(({ openRoom }) =>
-              openRoom(record.state.code, "host", identity.deviceId),
-            )
-          : Promise.resolve(createNullTransport());
+          ? openRoom(record.state.code, "host", identity.deviceId)
+          : Promise.resolve<Transport>(createNullTransport());
         void transport
           .then((it) => {
             const runtime = hostOn(record.state, it, record.shared);

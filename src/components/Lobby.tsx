@@ -11,7 +11,6 @@ interface LobbyProps {
   me: PlayerId | null;
   /** null jugando solo: la sala tiene código igual, pero no hay a quién invitárselo. */
   code: RoomCode | null;
-  acked?: Record<PlayerId, number>;
   onStart?: () => void;
 }
 
@@ -45,7 +44,7 @@ function Invite({ code }: { code: RoomCode }) {
   );
 }
 
-export function Lobby({ snapshot, me, code, acked, onStart }: LobbyProps) {
+export function Lobby({ snapshot, me, code, onStart }: LobbyProps) {
   const waiting = Object.keys(snapshot.players).length;
 
   return (
@@ -61,7 +60,7 @@ export function Lobby({ snapshot, me, code, acked, onStart }: LobbyProps) {
       <h2 className="mt-8 text-base font-semibold text-muted">
         {waiting === 1 ? "Estás vos solo" : `${waiting} en la sala`}
       </h2>
-      <Players snapshot={snapshot} game={null} me={me} acked={acked} />
+      <Players snapshot={snapshot} game={null} me={me} />
 
       {onStart ? (
         <button type="button" onClick={onStart} className={`${BUTTON_SIGN} mt-6 w-full`}>

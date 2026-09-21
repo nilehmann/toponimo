@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, lazy, type ReactNode } from "react";
 
 import { Home } from "./components/Home";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -20,6 +20,11 @@ function Screen({ children }: { children: ReactNode }) {
 
 /** El código viaja en el fragmento, así que un link o un QR entran derecho a la sala. */
 const invited = codeFromHash(typeof location === "undefined" ? "" : location.hash);
+
+/** `#banco` monta el banco de loopback: host y jugadores simulados en una sola pestaña. Se carga
+ *  aparte para que no viaje en el bundle de quien viene a jugar. */
+const bench = typeof location !== "undefined" && location.hash === "#banco";
+const Harness = lazy(() => import("./dev/Harness").then(({ Harness }) => ({ default: Harness })));
 
 function Session({ data, theme }: { data: GameData; theme: ReturnType<typeof useTheme> }) {
   const session = useSession(data);
@@ -81,5 +86,12 @@ export default function App() {
     );
   }
 
+  if (bench) {
+    return (
+      <Suspense fallback={<Screen>Armando el banco…</Screen>}>
+        <Harness data={gameData.data} theme={theme} />
+      </Suspense>
+    );
+  }
   return <Session data={gameData.data} theme={theme} />;
 }

@@ -14,17 +14,19 @@ import { type AnyGame, answered, guessOf, phase, revealedToponym, score } from "
 import { ROUNDS } from "./game/toponyms";
 import type { PlayerId, Snapshot } from "./game/types";
 import type { Session } from "./hooks/useSession";
+import type { SessionView } from "./net/runtime";
 import type { ThemePref } from "./hooks/useTheme";
 
-/** «4 de 5 al día»: cuántos acusaron recibo del último cambio. El host cuenta siempre, que es
- *  de donde sale la verdad. Un ack prueba que llegó, no que siga ahí: es información, no un
- *  permiso, así que los botones de revelar y avanzar nunca se bloquean. */
-function upToDate(snapshot: Snapshot, game: AnyGame, acked: Record<PlayerId, number>): string | null {
-  if (game.participants.length < 2) return null;
-  const ready = game.participants.filter(
-    (id) => id === snapshot.hostId || (acked[id] ?? 0) >= snapshot.version,
-  ).length;
-  return `${ready} de ${game.participants.length} al día`;
+/** Quiénes no acusaron el último cambio que había que acusar. El host cuenta siempre al día:
+ *  es de donde sale la verdad. Un ack prueba que llegó, no que siga ahí, así que esto es
+ *  información y no un permiso: los botones de revelar y avanzar nunca se bloquean. */
+function behind(snapshot: Snapshot, game: AnyGame, view: SessionView): Set<PlayerId> {
+  if (view.awaited === 0) return new Set();
+  return new Set(
+    game.participants.filter(
+      (id) => id !== snapshot.hostId && (view.acked[id] ?? 0) < view.awaited,
+    ),
+  );
 }
 
 function missing(game: AnyGame): string | null {
@@ -38,9 +40,11 @@ function missing(game: AnyGame): string | null {
 interface GameProps {
   session: Session;
   theme: { pref: ThemePref; cycle: () => void };
+  /** El banco de loopback monta varias pantallas a la vez y ahí el atajo sobra. */
+  keyboard?: boolean;
 }
 
-export function Game({ session, theme }: GameProps) {
+export function Game({ session, theme, keyboard = true }: GameProps) {
   const { view, isHost, code } = session;
   const { snapshot, me } = view;
   const game = snapshot?.game ?? null;
@@ -57,7 +61,7 @@ export function Game({ session, theme }: GameProps) {
     if (where === "summary" && isHost) againRef.current?.focus({ preventScroll: true });
   }, [where, isHost]);
 
-  const answering = where === "answering";
+  const answering = where === "answering" && keyboard;
   useEffect(() => {
     if (!answering) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -85,6 +89,9 @@ export function Game({ session, theme }: GameProps) {
   const round = game?.rounds[game.current];
   const toponym = round ? revealedToponym(round) : null;
   const alone = (game?.participants.length ?? 1) < 2;
+  const late = game && isHost ? behind(snapshot, game, view) : undefined;
+  const upToDate =
+    game && late ? `${game.participants.length - late.size} de ${game.participants.length} al día` : undefined;
 
   return (
     <Shell
@@ -108,7 +115,6 @@ export function Game({ session, theme }: GameProps) {
           snapshot={snapshot}
           me={me}
           code={code}
-          acked={isHost ? view.acked : undefined}
           onStart={isHost ? session.newGame : undefined}
         />
       ) : where === "summary" ? (
@@ -141,7 +147,7 @@ export function Game({ session, theme }: GameProps) {
               guess={mine}
               last={game.current + 1 === ROUNDS}
               onNext={isHost ? session.next : undefined}
-              upToDate={upToDate(snapshot, game, view.acked) ?? undefined}
+              upToDate={alone ? undefined : upToDate}
             />
           ) : (
             <Choices onAnswer={session.answer} selected={selected} waiting={missing(game)} />
@@ -152,12 +158,7 @@ export function Game({ session, theme }: GameProps) {
               <h2 className="mt-8 text-base font-semibold text-muted">
                 {toponym ? "Quién cayó" : (missing(game) ?? "La sala")}
               </h2>
-              <Players
-                snapshot={snapshot}
-                game={game}
-                me={me}
-                acked={isHost ? view.acked : undefined}
-              />
+              <Players snapshot={snapshot} game={game} me={me} behind={late} />
               {isHost && !toponym && (
                 <button
                   type="button"
