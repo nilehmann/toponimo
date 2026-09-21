@@ -7,6 +7,10 @@ export interface SessionView {
   me: PlayerId | null;
   /** Solo lo llena el host: última versión que acusó cada jugador. Efímero, no se difunde. */
   acked: Record<PlayerId, number>;
+  /** La última versión que hacía falta acusar, o 0 si todavía no hubo ninguna. Estar al día se
+   *  mide contra esto y no contra la versión actual: una respuesta ajena también sube la
+   *  versión, y nadie la acusa ni tiene por qué. */
+  awaited: number;
   /** Solo el jugador: tres `hello` seguidos sin respuesta. */
   unreachable: boolean;
   /** Lo que el jugador acaba de tocar y el host todavía no confirmó. Se borra con el próximo
@@ -35,6 +39,7 @@ export const EMPTY_VIEW: SessionView = {
   snapshot: null,
   me: null,
   acked: {},
+  awaited: 0,
   unreachable: false,
   pending: null,
   late: false,

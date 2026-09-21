@@ -19,11 +19,13 @@ export function createHost({ state, transport, onChange, now = Date.now }: HostO
   /** Efímero, solo acá. No se persiste ni se difunde. */
   const acked: Record<PlayerId, number> = {};
   const retries = new Map<PlayerId, { version: number; cancel: () => void }>();
+  let awaited = 0;
 
   const store = createStore<SessionView>(() => ({
     snapshot: project(state),
     me: state.hostId,
     acked: { ...acked },
+    awaited,
     unreachable: false,
     pending: null,
     late: false,
@@ -61,7 +63,10 @@ export function createHost({ state, transport, onChange, now = Date.now }: HostO
     state = next;
     onChange?.(state);
     transport.broadcast({ t: "snapshot", state: project(state) });
-    if (needsAck(before, state.game)) armRetries(state.version);
+    if (needsAck(before, state.game)) {
+      awaited = state.version;
+      armRetries(state.version);
+    }
     store.notify();
     return true;
   }

@@ -46,6 +46,7 @@ export function createClient({ transport, deviceId, name }: ClientOptions): Sess
       snapshot,
       me,
       acked: {},
+      awaited: 0,
       unreachable,
       pending: onThisRound(pending) ? pending!.guess : null,
       late: onThisRound(lateAt),

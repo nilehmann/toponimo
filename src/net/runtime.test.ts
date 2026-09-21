@@ -506,3 +506,36 @@ describe("una partida entera en grupo", () => {
     expect(JSON.stringify(snapshotOf(ana))).not.toContain("Real 0-");
   });
 });
+
+describe("estar al día", () => {
+  it("nadie está atrasado antes del primer cambio que haya que acusar", async () => {
+    const { host, join } = room();
+    join("da", "Ana");
+    join("db", "Beto");
+    await settle();
+    // Entrar sube la versión, pero entrar no es algo que nadie tenga que acusar.
+    expect(host.getView().awaited).toBe(0);
+  });
+
+  it("se mide contra el último cambio que había que acusar, no contra la versión", async () => {
+    const { host, join } = room();
+    join("da", "Ana");
+    join("db", "Beto");
+    await settle();
+    host.start(fakeToponyms());
+    host.reveal();
+    await settle();
+
+    const awaited = host.getView().awaited;
+    expect(awaited).toBe(snapshotOf(host).version);
+    expect(host.getView().acked["2"]).toBeGreaterThanOrEqual(awaited);
+
+    // Alguien entra con el reveal en pantalla: sube la versión y no la acusa nadie, pero eso
+    // no deja atrasado a quien ya vio el resultado.
+    join("dc", "Caro");
+    await settle();
+    expect(snapshotOf(host).version).toBeGreaterThan(awaited);
+    expect(host.getView().awaited).toBe(awaited);
+    expect(host.getView().acked["2"]).toBeGreaterThanOrEqual(host.getView().awaited);
+  });
+});
