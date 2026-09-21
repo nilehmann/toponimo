@@ -21,6 +21,7 @@
     "vitest": "^5.0.1"
   },
   "dependencies": {
+    "mqtt": "^5.16.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   }
