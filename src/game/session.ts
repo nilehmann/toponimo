@@ -181,10 +181,13 @@ export function reduce(state: SessionState, action: Action): SessionState {
       // El host nunca se saca a sí mismo, que es lo que mantiene el invariante.
       if (!game || action.playerId === state.hostId) return state;
       if (!game.participants.includes(action.playerId)) return state;
+      // Irse puede dejar la ronda con todos respondidos: sin esto, el host que ya contestó se
+      // queda solo mirando una ronda sin revelar y sin botón para revelarla.
+      const participants = game.participants.filter((id) => id !== action.playerId);
       return {
         ...state,
         version: state.version + 1,
-        game: { ...game, participants: game.participants.filter((id) => id !== action.playerId) },
+        game: withAutoReveal({ ...game, participants }),
       };
     }
   }

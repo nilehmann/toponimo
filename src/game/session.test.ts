@@ -232,6 +232,24 @@ describe("bye", () => {
     expect(violations(state)).toEqual([]);
   });
 
+  it("revela sola la ronda si irse deja al host respondiendo solo", () => {
+    // Si no, se queda mirando una ronda sin revelar y sin botón para revelarla: la pantalla de
+    // un participante no tiene ese botón, y volver a tocar lo mismo es idempotente.
+    const state = run(
+      withGuests("Ana"),
+      start(),
+      answer("1", 0, true),
+      { type: "bye", playerId: "2" },
+    );
+    expect(state.game!.participants).toEqual(["1"]);
+    expect(phase(state.game)).toBe("revealed");
+  });
+
+  it("no revela nada si el host todavía no respondió", () => {
+    const state = run(withGuests("Ana"), start(), { type: "bye", playerId: "2" });
+    expect(phase(state.game)).toBe("answering");
+  });
+
   it("el host nunca se saca a sí mismo", () => {
     const base = run(withGuests("Ana"), start());
     expect(reduce(base, { type: "bye", playerId: "1" })).toBe(base);

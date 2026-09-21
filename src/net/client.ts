@@ -37,9 +37,6 @@ export function createClient({ transport, deviceId, name }: ClientOptions): Sess
   let pending: Pending | null = null;
   let lateAt: { gameNumber: number; round: RoundIndex } | null = null;
   let cancelHello: (() => void) | null = null;
-  /** La última versión que acusamos. El host reenvía esa misma versión mientras no le llegue el
-   *  acuse, así que verla de nuevo significa que el acuse se perdió y hay que repetirlo. */
-  let ackedVersion = 0;
 
   const store = createStore<SessionView>(() => {
     const game = snapshot?.game ?? null;
@@ -57,15 +54,13 @@ export function createClient({ transport, deviceId, name }: ClientOptions): Sess
   });
 
   function ack(version: number) {
-    if (!me) return;
-    ackedVersion = version;
-    transport.send({ t: "ack", playerId: me, version });
+    if (me) transport.send({ t: "ack", playerId: me, version });
   }
 
   /** Gana la versión más alta: un snapshot rezagado se descarta sin efecto. Uno de la misma
    *  versión no cambia el estado pero sí repinta, que es lo que hace que refrescar sirva aunque
    *  el host no tenga nada nuevo que contar. Devuelve si hay que avisarle a la pantalla. */
-  function receive(next: Snapshot): boolean {
+  function receive(next: Snapshot, direct: boolean): boolean {
     if (snapshot && next.version < snapshot.version) return false;
     const before = snapshot;
     const fresh = snapshot === null || next.version > snapshot.version;
@@ -83,14 +78,16 @@ export function createClient({ transport, deviceId, name }: ClientOptions): Sess
     // Todo lo que muestra —incluida su propia elección— sale del último snapshot.
     pending = null;
 
-    if (fresh && needsAck(before?.game ?? null, next.game)) ack(next.version);
-    else if (!fresh && ackedVersion === next.version) ack(next.version);
+    // Por el canal personal solo llega lo que el host está reenviando porque no le acusamos,
+    // así que se acusa siempre: si se esperara a que la pantalla cambie, un `ack` perdido no
+    // se recuperaría nunca y el host se rendiría dando por atrasado a quien está al día.
+    if (direct || (fresh && needsAck(before?.game ?? null, next.game))) ack(next.version);
     return fresh || wasPending !== null || wasUnreachable !== unreachable;
   }
 
-  function onHostMessage(msg: HostMessage) {
+  function onHostMessage(msg: HostMessage, direct: boolean) {
     if (msg.t === "snapshot") {
-      if (receive(msg.state)) store.notify();
+      if (receive(msg.state, direct)) store.notify();
       return;
     }
     // Cada cliente ignora los `welcome` con otro dispositivo: van por el topic de todos.
@@ -102,7 +99,7 @@ export function createClient({ transport, deviceId, name }: ClientOptions): Sess
     // Acusa siempre, aunque el estado no traiga nada nuevo: es lo que pone al día la cuenta del
     // host después de que alguien vuelve a primer plano.
     ack(msg.state.version);
-    receive(msg.state);
+    receive(msg.state, false);
     store.notify();
   }
 

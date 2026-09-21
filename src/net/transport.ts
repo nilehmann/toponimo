@@ -16,7 +16,10 @@ export type HostMessage =
 
 export interface TransportHandlers {
   onClientMessage(msg: ClientMessage): void;
-  onHostMessage(msg: HostMessage): void;
+  /** `direct` distingue el canal personal del de todos. El host solo manda por el personal
+   *  cuando está esperando un acuse, así que verlo llegar ahí ya es la señal de que hay que
+   *  acusar: no hace falta deducirlo de si la pantalla cambió. */
+  onHostMessage(msg: HostMessage, direct: boolean): void;
 }
 
 export interface Transport {

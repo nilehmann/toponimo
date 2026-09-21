@@ -50,13 +50,13 @@ export function createLoopback(options: LoopbackOptions = {}): Loopback {
         send: () => wrongSide("mandar como cliente"),
         broadcast(msg) {
           deliver(msg, "all", () => {
-            for (const client of [...clients]) client.handlers?.onHostMessage(msg);
+            for (const client of [...clients]) client.handlers?.onHostMessage(msg, false);
           });
         },
         sendTo(playerId, msg) {
           deliver(msg, playerId, () => {
             for (const client of [...clients]) {
-              if (client.playerId === playerId) client.handlers?.onHostMessage(msg);
+              if (client.playerId === playerId) client.handlers?.onHostMessage(msg, true);
             }
           });
         },
@@ -72,9 +72,9 @@ export function createLoopback(options: LoopbackOptions = {}): Loopback {
         connect(handlers) {
           entry.handlers = {
             onClientMessage: handlers.onClientMessage,
-            onHostMessage(msg) {
+            onHostMessage(msg, direct) {
               tracker.observe(msg);
-              handlers.onHostMessage(msg);
+              handlers.onHostMessage(msg, direct);
             },
           };
           clients.add(entry);

@@ -57,13 +57,15 @@ describe("loopback", () => {
     expect(seen).toHaveLength(1);
   });
 
-  it("dirige sendTo al jugador que aprendió su id del welcome", async () => {
+  it("dirige sendTo al jugador que aprendió su id del welcome, y lo marca dirigido", async () => {
     const bus = createLoopback();
-    const seenByA: HostMessage[] = [];
+    const seenByA: [HostMessage, boolean][] = [];
     const seenByB: HostMessage[] = [];
     const host = bus.host();
     host.connect({ onClientMessage: () => {}, onHostMessage: () => {} });
-    bus.client("da").connect({ onClientMessage: () => {}, onHostMessage: (m) => seenByA.push(m) });
+    bus
+      .client("da")
+      .connect({ onClientMessage: () => {}, onHostMessage: (m, direct) => seenByA.push([m, direct]) });
     bus.client("db").connect({ onClientMessage: () => {}, onHostMessage: (m) => seenByB.push(m) });
 
     host.broadcast(welcome("da", "2"));
@@ -72,7 +74,11 @@ describe("loopback", () => {
     host.sendTo("2", { t: "snapshot", state: EMPTY });
     await flush();
 
-    expect(seenByA.filter((m) => m.t === "snapshot")).toHaveLength(1);
+    const aA = seenByA.filter(([m]) => m.t === "snapshot");
+    expect(aA).toHaveLength(1);
+    // El canal personal es la señal de que el host está esperando un acuse.
+    expect(aA[0][1]).toBe(true);
+    expect(seenByA.filter(([m]) => m.t === "welcome").every(([, direct]) => !direct)).toBe(true);
     expect(seenByB.filter((m) => m.t === "snapshot")).toHaveLength(0);
   });
 

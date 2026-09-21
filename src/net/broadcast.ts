@@ -48,7 +48,7 @@ export function createBroadcastTransport(
         tracker.observe(data.msg);
         // El canal es uno solo para toda la sala, así que el filtro por destinatario es acá.
         if (data.to !== null && data.to !== tracker.playerId) return;
-        handlers.onHostMessage(data.msg);
+        handlers.onHostMessage(data.msg, data.to !== null);
       };
       channel.addEventListener("message", onMessage);
       return () => {

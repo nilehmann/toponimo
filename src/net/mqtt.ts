@@ -14,6 +14,12 @@ import {
 
 export type Role = "host" | "client";
 
+/** Un mensaje y por cuál de los dos canales llegó. */
+interface Delivery {
+  msg: unknown;
+  direct: boolean;
+}
+
 /** Cuánto se le da a un broker público para contestar antes de probar el siguiente. */
 const CONNECT_TIMEOUT = 6000;
 
@@ -65,6 +71,11 @@ function open(url: string, id: string): Promise<MqttClient> {
         clearTimeout(timer);
         client.off("connect", win);
         client.off("error", fail);
+        // Tiene que quedar alguno: el EventEmitter de la librería vuelve a tirar el error si
+        // nadie lo escucha, y con `reconnectPeriod` cada reintento fallido sería una excepción
+        // sin atrapar. No hay nada que hacer con estos: la librería reconecta sola, y de que la
+        // sala siga al día se ocupan el reenvío del host y el `hello` del cliente.
+        client.on("error", () => {});
       }
       function win() {
         if (settled) return;
@@ -90,16 +101,16 @@ export function wrapClient(client: MqttClient, code: RoomCode, role: Role, devic
   const tags = role === "host" ? CLIENT_TAGS : HOST_TAGS;
   /** Lo que llegó antes de que el runtime se enganche. Sin esto habría una ventana entre
    *  suscribirse y escuchar en la que un `hello` se perdería. */
-  const queued: unknown[] = [];
+  const queued: Delivery[] = [];
   let handlers: TransportHandlers | null = null;
 
-  const deliver = (msg: unknown) => {
+  const deliver = ({ msg, direct }: Delivery) => {
     if (!handlers) {
-      queued.push(msg);
+      queued.push({ msg, direct });
       return;
     }
     if (role === "host") handlers.onClientMessage(msg as ClientMessage);
-    else handlers.onHostMessage(msg as HostMessage);
+    else handlers.onHostMessage(msg as HostMessage, direct);
   };
 
   const tracker = trackPlayerId(deviceId, (playerId) => {
@@ -111,10 +122,11 @@ export function wrapClient(client: MqttClient, code: RoomCode, role: Role, devic
     if (msg === null) return;
     if (role === "host") {
       if (received !== topic.inbox) return;
-    } else {
-      tracker.observe(msg as HostMessage);
+      deliver({ msg, direct: false });
+      return;
     }
-    deliver(msg);
+    tracker.observe(msg as HostMessage);
+    deliver({ msg, direct: received !== topic.host });
   };
 
   client.on("message", onMessage);

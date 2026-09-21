@@ -221,7 +221,11 @@ type HostMessage =
    snapshot de versión **menor** no tiene ningún efecto, pero uno de la **misma** versión repinta
    igual. Si no, el caso para el que existe el botón —el host no tiene tu respuesta, así que no
    tiene nada nuevo que contar— lo dejaría exactamente como estaba.
-8. **`bye` saca de `participants`, no de `players`.** Quien avisa que se va deja de aparecer en
+8. **`bye` saca de `participants`, no de `players`.** Irse también puede cerrar la ronda: si el
+   host ya respondió y se va el último invitado, queda un solo participante que ya contestó, y ahí
+   se revela sola por la misma regla del solitario. Sin eso el host quedaría mirando una ronda sin
+   revelar y sin botón para revelarla, porque esa pantalla no lo tiene cuando se juega solo.
+    Quien avisa que se va deja de aparecer en
    la lista de quién respondió, pero sigue en `players` con sus respuestas intactas y en el
    marcador de la partida. Si vuelve con `hello`, se repone. El host nunca se saca a sí mismo, que
    es lo que mantiene el invariante. Que un `bye` no llegue —en el teléfono no hay evento de
@@ -257,10 +261,12 @@ suscriptor. Como el broker es público y sin garantías, un snapshot perdido dej
 en la ronda anterior **en silencio**, sin nada que lo despierte a preguntar.
 
 Por eso el cliente responde con `ack` de la versión que aplicó **cuando esa versión es un reveal o
-un avance de ronda**, y repite el acuse si ve llegar de nuevo la versión que ya acusó —que es lo
-único que el host reenvía, así que verla otra vez significa que el acuse se perdió. Sin eso, un
-`ack` perdido es irrecuperable: el host gasta los tres intentos y deja marcado como atrasado a
-alguien que está mirando exactamente la misma pantalla que él.
+un avance de ronda**, y además **siempre que el mensaje le llegue por su canal personal**. Esa
+segunda regla es la que hace recuperable un `ack` perdido: el host solo manda por `/c/{id}` lo que
+está reenviando, así que verlo ahí ya significa que le está esperando un acuse. Si el cliente solo
+mirara si la pantalla cambió, un reenvío que no le cambia nada —porque ya lo tenía, y lo que se
+perdió fue su acuse— no dispararía nada, y el host se rendiría dando por atrasado a alguien que
+está mirando exactamente la misma pantalla que él.
 
 El host lleva la cuenta:
 
@@ -324,7 +330,9 @@ Todo lo anterior es independiente de por dónde viajen los mensajes.
 ```ts
 interface TransportHandlers {
   onClientMessage(msg: ClientMessage): void;
-  onHostMessage(msg: HostMessage): void;
+  /** `direct` distingue el canal personal del de todos, que es lo que deja acusar un reenvío
+   *  sin tener que deducirlo de si la pantalla cambió. */
+  onHostMessage(msg: HostMessage, direct: boolean): void;
 }
 
 interface Transport {
