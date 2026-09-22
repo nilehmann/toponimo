@@ -41,8 +41,8 @@ export const COPY = {
 
   home: {
     pitch:
-      "Toma la ruta y fíjate bien en los letreros que van apareciendo en la carretera. Algunos " +
-      "señalan pueblos de verdad y otros son puro chamullo. ¿Cuánto conoces Chile?",
+      "Toma la ruta por Chile y fíjate bien en los letreros que van apareciendo en la carretera. " +
+      "Algunos señalan pueblos de verdad y otros son puro chamullo. ¿Puedes diferenciarlos?",
     savedRoom: (code: string) => `la caravana ${code}`,
     savedSolo: "tu partida",
     resume: (what: string) => `Retomar ${what}`,
