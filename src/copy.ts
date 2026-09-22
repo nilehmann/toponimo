@@ -102,7 +102,7 @@ export const COPY = {
     whoFell: "Quién cayó",
     reveal: "Revelar el letrero",
     upToDate: (n: number, total: number) => `${n} de ${total} al día`,
-    next: "Siguiente letrero",
+    next: "Siguiente",
     seeResult: "Ver resultado",
     waitingHost: "Esperando al host.",
     waitingResult: "Esperando el resultado.",
