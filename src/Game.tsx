@@ -133,12 +133,6 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
         />
       ) : (
         <section aria-live="polite">
-          {!toponym && (
-            <p className="mt-1.5 mb-4 max-w-lg text-muted">
-              {COPY.round.intro}
-            </p>
-          )}
-
           <Ticks game={game} me={me} />
           {toponym && <Verdict toponym={toponym} guess={mine} />}
 
