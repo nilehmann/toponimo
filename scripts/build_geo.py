@@ -10,15 +10,14 @@ geometría, que es lo caro. Las 10.863 localidades tardan unos segundos; la desc
 """
 import json
 import math
-from collections import Counter, defaultdict
+from collections import defaultdict
 from typing import Any, Iterator, Optional
 
 import shapefile
-from dbfread import DBF
 from shapely.geometry import MultiPolygon, Polygon, mapping, shape
 from shapely.ops import unary_union
 
-from common import PROCESSED, RAW, ald_id, loc_id, norm, urb_id
+from common import PROCESSED, RAW, ald_id, loc_id, norm, rural_pop, urb_id, urban_pop
 from export import title
 
 # Tolerancia de simplificación en grados. 0,0003° son ~33 m, que deja unos 86 puntos por
@@ -53,18 +52,6 @@ def round_coords(obj: Any) -> Any:
             return [round(float(c), DEC) for c in obj]
         return [round_coords(o) for o in obj]
     return obj
-
-
-def population() -> Counter[str]:
-    """Habitantes por localidad rural, sumando las entidades que la componen.
-
-    Solo existe para la capa de localidades: en estas tablas los pueblos y las aldeas no traen
-    población, y la ficha simplemente no muestra la línea cuando falta.
-    """
-    pop: Counter[str] = Counter()
-    for e in DBF(RAW / "entidades_indeterminadas_16r.dbf", encoding="utf-8"):
-        pop[loc_id(e["comuna"], e["distrito"], e["loc_zon"])] += e["total_pers"] or 0
-    return pop
 
 
 def capitals() -> list[tuple[str, float, float]]:
@@ -163,7 +150,8 @@ def main() -> None:
     for old in OUT.glob("*.json"):
         old.unlink()
 
-    pop = population()
+    # Localidades y áreas urbanas; las aldeas no tienen de dónde sacarla y quedan sin la línea.
+    pop = rural_pop() + urban_pop()
     refs = capitals()
     n = total = points = capped = over = 0
     biggest: tuple[int, str] = (0, "")

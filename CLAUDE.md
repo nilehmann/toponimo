@@ -3,13 +3,17 @@ referencia: si el código y ese documento no coinciden, hay que arreglar uno de 
 
 - Tras editar `src/`: `npm run build` (corre `tsc`, las pruebas y luego Vite). Tras editar
   `scripts/`: `npm run data && npm run build`. Las pruebas solas: `npm test`.
-- La geometría va **aparte** de `npm run data`, porque la descarga pasa de 0,6 MB a 79 MB:
+- La geometría va **aparte** de `npm run data`, porque la descarga pasa de 6,5 MB a 85 MB:
   `cd scripts && python3 download.py && python3 build_geo.py`. `download.py` salta lo que ya
   está en `data/raw/` con el tamaño correcto (`--force` lo fuerza), y `build_geo.py` escribe
   `data/processed/geo/{id}.json`, un GeoJSON Feature por topónimo. Toma unos 45 s.
 - `data/raw/` es lo que se baja tal cual y no se versiona; `data/processed/` es todo lo generado
   —`real.json`, `fake.json`, `game_data.json` y `geo/`— y sí se versiona. Se puede borrar
   `processed/` entero y rehacerlo; borrar `raw/` obliga a descargar de nuevo.
+- La población también vive en `common.py`, en `rural_pop()` y `urban_pop()`, porque la usan
+  `build_geo.py` para la ficha y `build_real.py` para desempatar los nombres repetidos, y tienen
+  que dar lo mismo. La urbana no está hecha en ninguna tabla: se suma por manzana y se agrupa con
+  `zonas_16r`. Las aldeas no tienen de dónde sacarla y van con 0.
 - El id de la geometría lo arman `loc_id`, `urb_id` y `ald_id` de `common.py`, y los usan tanto
   `build_geo.py` al escribir los contornos como `build_real.py` al elegir los topónimos. Nunca
   buscar geometría por nombre: el 39% de los nombres jugables calza con más de una entidad del
