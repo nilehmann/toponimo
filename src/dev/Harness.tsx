@@ -5,7 +5,7 @@ import { createSession } from "../game/session";
 import { buildToponyms } from "../game/toponyms";
 import type { GameData, Guess } from "../game/types";
 import { type Session, useSessionView } from "../hooks/useSession";
-import type { ThemePref } from "../hooks/useTheme";
+import type { Theme } from "../hooks/useTheme";
 import { createClient } from "../net/client";
 import { newCode } from "../net/code";
 import { createHost } from "../net/host";
@@ -28,8 +28,6 @@ const LOSSES: [key: keyof Losses, label: string][] = [
 ];
 
 const NAMES = ["Ana", "Beto", "Caro", "Dani", "Eli", "Fabi", "Gabo"];
-
-type Theme = { pref: ThemePref; cycle: () => void };
 
 interface SeatProps {
   runtime: SessionRuntime;
