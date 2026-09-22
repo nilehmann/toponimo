@@ -30,18 +30,6 @@ function ArrowIcon({ arrow }: { arrow: Arrow }) {
   );
 }
 
-/** Rol de camino regional, blanco con borde negro como en la ruta. */
-function Plate({ plate }: { plate: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="rounded-md border-3 border-plate-ink bg-white px-2 pt-1 text-2xl leading-none font-extrabold text-plate-ink"
-    >
-      {plate}
-    </span>
-  );
-}
-
 /** Ancho de las letras de Overpass 800, en em, medido en el navegador sobre todos los caracteres
  *  de los nombres del juego. Las que no están aquí andan entre 0,55 y 0,6. Un promedio fijo no
  *  sirve: «Domeyko» no pasa de 0,6 por letra en promedio pero igual se partía en un teléfono. */
@@ -66,26 +54,38 @@ function charEm(c: string): number {
 /** Lo que ocupan la flecha y su separación cuando va al costado del nombre. */
 const SIDE_ARROW = "3.25rem";
 
-/** Tamaño máximo para que la palabra más ancha quepa entera en el ancho que queda, con un 5% de
- *  aire. Sin esto la flecha al costado partía «Aeropuerto» en dos. */
-function fit(name: string, reserve: string): string {
-  const width = (word: string) => [...word].reduce((em, c) => em + charEm(c), 0);
-  const widest = Math.max(...name.split(/\s+/).map(width));
-  return `calc((100cqi - ${reserve}) / ${(widest * 1.05).toFixed(2)})`;
+/** Separación entre el nombre y los kilómetros, en em para que se achique junto con la letra. */
+const KM_GAP = 0.5;
+
+function textEm(text: string): number {
+  return [...text].reduce((em, c) => em + charEm(c), 0);
+}
+
+/** Tamaño máximo para que la palabra más ancha, y los kilómetros al lado si los hay, quepan enteros
+ *  en el ancho que queda, con un 5% de aire. Sin esto la flecha al costado partía «Aeropuerto». */
+function fit(name: string, km: number | null, reserve: string): string {
+  const widest = Math.max(...name.split(/\s+/).map(textEm));
+  const extra = km === null ? 0 : KM_GAP + textEm(String(km));
+  return `calc((100cqi - ${reserve}) / ${((widest + extra) * 1.05).toFixed(2)})`;
 }
 
 export function Sign({ name, revealed, real, comuna }: SignProps) {
-  const { arrow, plate } = signage(name);
+  const { arrow, km } = signage(name);
   // La flecha va del lado al que apunta, como manda el manual; la que sigue derecho va arriba.
   const side = arrow === "left" || arrow === "up-left" ? "start" : arrow === "up" ? null : "end";
-  const style = { "--fit": fit(name, side === null ? "0rem" : SIDE_ARROW) } as CSSProperties;
+  const style = {
+    "--fit": fit(name, km, side === null ? "0rem" : SIDE_ARROW),
+    columnGap: `${KM_GAP}em`,
+  } as CSSProperties;
+  // Los kilómetros van a la derecha del nombre y con la misma letra, como en la ruta.
   const label = (
-    <p
+    <div
       style={style}
-      className="wrap-anywhere hyphens-auto text-[length:min(var(--text-4xl),var(--fit))] leading-none font-extrabold text-white sm:text-[length:min(var(--text-5xl),var(--fit))]"
+      className="flex items-center text-[length:min(var(--text-4xl),var(--fit))] leading-none font-extrabold text-white sm:text-[length:min(var(--text-5xl),var(--fit))]"
     >
-      {name}
-    </p>
+      <p className="wrap-anywhere hyphens-auto">{name}</p>
+      {km !== null && <span className="shrink-0">{km}</span>}
+    </div>
   );
 
   return (
@@ -94,21 +94,15 @@ export function Sign({ name, revealed, real, comuna }: SignProps) {
         <div className="flex min-h-44 flex-col items-center @container justify-center gap-2 rounded-lg border-4 border-white px-4 pt-5 pb-6 text-center">
           {side === null ? (
             <>
-              <div className="flex items-center gap-3">
-                {plate && <Plate plate={plate} />}
-                <ArrowIcon arrow={arrow} />
-              </div>
+              <ArrowIcon arrow={arrow} />
               {label}
             </>
           ) : (
-            <>
-              {plate && <Plate plate={plate} />}
-              <div className="flex items-center gap-3 text-left">
-                {side === "start" && <ArrowIcon arrow={arrow} />}
-                {label}
-                {side === "end" && <ArrowIcon arrow={arrow} />}
-              </div>
-            </>
+            <div className="flex items-center gap-3 text-left">
+              {side === "start" && <ArrowIcon arrow={arrow} />}
+              {label}
+              {side === "end" && <ArrowIcon arrow={arrow} />}
+            </div>
           )}
         </div>
         {revealed && !real && (

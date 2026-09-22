@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 
 import type { GameData } from "../game/types";
-import { ARROWS, PLATE_LETTERS, PLATE_ODDS, signage } from "./signage";
+import { ARROWS, KM_MAX, KM_ODDS, signage } from "./signage";
 
 const game = JSON.parse(
   readFileSync(new URL("../../data/processed/game_data.json", import.meta.url), "utf8"),
@@ -26,22 +26,23 @@ describe("signage", () => {
     for (const n of counts.values()) expect(n / names.length).toBeCloseTo(1 / ARROWS.length, 1);
   });
 
-  it("pone placa más o menos una de cada cuatro veces", () => {
-    const plated = names.filter((n) => signage(n).plate !== null).length;
-    expect(plated / names.length).toBeCloseTo(PLATE_ODDS, 1);
+  it("marca la distancia más o menos una de cada cuatro veces", () => {
+    const marked = names.filter((n) => signage(n).km !== null).length;
+    expect(marked / names.length).toBeCloseTo(KM_ODDS, 1);
   });
 
-  it("la placa es una letra de rol y un número de dos o tres cifras", () => {
+  it("la distancia es un entero de 2 a KM_MAX", () => {
     for (const name of names) {
-      const { plate } = signage(name);
-      if (plate === null) continue;
-      expect(plate).toMatch(/^[A-Z]-[1-9]\d{1,2}$/);
-      expect(PLATE_LETTERS).toContain(plate[0]);
+      const { km } = signage(name);
+      if (km === null) continue;
+      expect(Number.isInteger(km)).toBe(true);
+      expect(km).toBeGreaterThanOrEqual(2);
+      expect(km).toBeLessThanOrEqual(KM_MAX);
     }
   });
 
-  it("reales e inventados reciben placa en la misma proporción", () => {
-    const rate = (list: string[]) => list.filter((n) => signage(n).plate !== null).length / list.length;
+  it("reales e inventados reciben distancia en la misma proporción", () => {
+    const rate = (list: string[]) => list.filter((n) => signage(n).km !== null).length / list.length;
     expect(Math.abs(rate(real) - rate(fake))).toBeLessThan(0.03);
   });
 });
