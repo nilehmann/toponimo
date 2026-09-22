@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 export type ThemePref = "system" | "light" | "dark";
 
-const ORDER: ThemePref[] = ["system", "light", "dark"];
+/** Lo que la pantalla necesita del tema: en qué está y cómo cambiarlo. */
+export type Theme = { pref: ThemePref; set: (pref: ThemePref) => void };
+
 const KEY = "theme";
 
 function storedPref(): ThemePref {
@@ -16,7 +18,7 @@ function storedPref(): ThemePref {
 }
 
 /** Escribe el tema resuelto en <html data-theme>, que es lo que leen las variables del CSS. */
-export function useTheme(): { pref: ThemePref; cycle: () => void } {
+export function useTheme(): Theme {
   const [pref, setPref] = useState<ThemePref>(storedPref);
 
   useEffect(() => {
@@ -36,9 +38,5 @@ export function useTheme(): { pref: ThemePref; cycle: () => void } {
     return () => query.removeEventListener("change", apply);
   }, [pref]);
 
-  const cycle = useCallback(() => {
-    setPref((current) => ORDER[(ORDER.indexOf(current) + 1) % ORDER.length]);
-  }, []);
-
-  return { pref, cycle };
+  return { pref, set: setPref };
 }

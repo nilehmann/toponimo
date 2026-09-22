@@ -7,7 +7,7 @@ import { Game } from "./Game";
 import type { GameData } from "./game/types";
 import { useGameData } from "./hooks/useGameData";
 import { useSession } from "./hooks/useSession";
-import { useTheme } from "./hooks/useTheme";
+import { type Theme, useTheme } from "./hooks/useTheme";
 import { codeFromHash } from "./net/code";
 
 function Screen({ children }: { children: ReactNode }) {
@@ -26,7 +26,7 @@ const invited = codeFromHash(typeof location === "undefined" ? "" : location.has
 const bench = typeof location !== "undefined" && location.hash === "#banco";
 const Harness = lazy(() => import("./dev/Harness").then(({ Harness }) => ({ default: Harness })));
 
-function Session({ data, theme }: { data: GameData; theme: ReturnType<typeof useTheme> }) {
+function Session({ data, theme }: { data: GameData; theme: Theme }) {
   const session = useSession(data);
 
   if (session.status.status === "playing") return <Game session={session} theme={theme} />;
@@ -34,7 +34,7 @@ function Session({ data, theme }: { data: GameData; theme: ReturnType<typeof use
   return (
     <Screen>
       <div className="absolute top-4 right-5">
-        <ThemeToggle pref={theme.pref} onCycle={theme.cycle} />
+        <ThemeToggle pref={theme.pref} onPick={theme.set} />
       </div>
       <h1 className="text-4xl font-extrabold tracking-tight">Topónimo</h1>
 

@@ -15,7 +15,7 @@ import { type AnyGame, answered, guessOf, phase, revealedToponym, score } from "
 import { ROUNDS } from "./game/toponyms";
 import type { PlayerId, Snapshot } from "./game/types";
 import type { Session } from "./hooks/useSession";
-import type { ThemePref } from "./hooks/useTheme";
+import type { Theme } from "./hooks/useTheme";
 import type { SessionView } from "./net/runtime";
 
 /** Quiénes no acusaron el último cambio que había que acusar. El host cuenta siempre al día:
@@ -40,7 +40,7 @@ function missing(snapshot: Snapshot, game: AnyGame): string | null {
 
 interface GameProps {
   session: Session;
-  theme: { pref: ThemePref; cycle: () => void };
+  theme: Theme;
   /** El banco de loopback monta varias pantallas a la vez y ahí el atajo sobra. */
   keyboard?: boolean;
 }
@@ -202,7 +202,7 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
 
 interface ShellProps {
   children: React.ReactNode;
-  theme: { pref: ThemePref; cycle: () => void };
+  theme: Theme;
   onLeave: () => void;
   progress?: React.ReactNode;
 }
@@ -216,9 +216,9 @@ function Shell({ children, theme, onLeave, progress }: ShellProps) {
             Topónimo
           </button>
         </h1>
-        <div className="flex items-baseline gap-3">
+        <div className="flex items-center gap-3">
           {progress}
-          <ThemeToggle pref={theme.pref} onCycle={theme.cycle} />
+          <ThemeToggle pref={theme.pref} onPick={theme.set} />
         </div>
       </header>
 
