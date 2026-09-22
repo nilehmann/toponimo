@@ -5,8 +5,11 @@ import type { Guess, Toponym } from "../game/types";
 import { BUTTON_NEUTRAL } from "./ui";
 
 function sentence(toponym: Toponym, guess: Guess | undefined): string {
-  if (guess === undefined || guess !== toponym.real) {
+  if (guess === undefined) {
     return toponym.real ? COPY.reveal.isReal : COPY.reveal.isFake;
+  }
+  if (guess !== toponym.real) {
+    return toponym.real ? COPY.reveal.wrongReal : COPY.reveal.wrongFake;
   }
   return toponym.real ? COPY.reveal.rightReal : COPY.reveal.rightFake;
 }
