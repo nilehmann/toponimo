@@ -65,7 +65,7 @@ referencia: si el código y ese documento no coinciden, hay que arreglar uno de 
   tiene otra forma de reconocer que es suyo: su `PlayerId` es lo que ese mensaje viene a entregarle.
 - `storage/session.ts` guarda en dos cajones, sala y solitario. No es un campo de modo —en el estado
   las dos se ven idénticas— sino lo que hace falta al reabrir para saber qué transporte levantar. Y
-  con un cajón solo, tocar «Jugar solo» borraría la única copia autoritativa de una sala en curso.
+  con un cajón solo, tocar «Viajar solo» borraría la única copia autoritativa de una sala en curso.
 - Todo lo que se lee de `localStorage` se valida antes de usarlo y nunca deja salir una excepción:
   corre durante el primer render, así que un estado a medio guardar dejaría la pantalla en blanco
   y sin nada que tocar para borrarlo.
