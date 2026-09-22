@@ -41,7 +41,8 @@ export const COPY = {
 
   home: {
     pitch:
-      "Quince letreros por partida, mitad reales y mitad chamullo. Sola, o con quien tengas al lado.",
+      "Toma la ruta y fíjate bien en los letreros que van apareciendo en la carretera. Algunos " +
+      "señalan pueblos de verdad y otros son puro chamullo. ¿Cuánto conoces Chile?",
     savedRoom: (code: string) => `la sala ${code}`,
     savedSolo: "tu partida",
     resume: (what: string) => `Retomar ${what}`,
