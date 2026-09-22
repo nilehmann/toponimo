@@ -1,3 +1,4 @@
+import { COPY } from "../copy";
 import { type AnyGame, revealedToponym } from "../game/session";
 import type { PlayerId, Snapshot } from "../game/types";
 
@@ -27,22 +28,26 @@ export function Players({ snapshot, game, me, behind }: PlayersProps) {
           <li key={id} className="flex items-baseline justify-between gap-3 border-b border-line py-2">
             <span className="font-semibold">
               {player.name}
-              {id === me && <span className="ml-1.5 text-sm font-normal text-muted">tú</span>}
+              {id === me && <span className="ml-1.5 text-sm font-normal text-muted">{COPY.players.me}</span>}
               {id === snapshot.hostId && (
-                <span className="ml-1.5 text-sm font-normal text-muted">host</span>
+                <span className="ml-1.5 text-sm font-normal text-muted">{COPY.players.host}</span>
               )}
             </span>
             <span className="shrink-0 text-right text-sm">
               {game === null ? null : toponym ? (
                 <span className={correct ? "font-semibold text-ok" : "font-semibold text-miss"}>
-                  {guess === undefined ? "No respondió" : correct ? "Acertó" : "Cayó"}
+                  {guess === undefined
+                    ? COPY.players.noAnswer
+                    : correct
+                      ? COPY.players.right
+                      : COPY.players.wrong}
                 </span>
               ) : (
                 <span className={guess === undefined ? "text-muted" : "font-semibold text-ok"}>
-                  {guess === undefined ? "Pensando" : "Respondió"}
+                  {guess === undefined ? COPY.players.thinking : COPY.players.answered}
                 </span>
               )}
-              {behind?.has(id) && <span className="ml-2 text-muted">atrasado</span>}
+              {behind?.has(id) && <span className="ml-2 text-muted">{COPY.players.behind}</span>}
             </span>
           </li>
         );

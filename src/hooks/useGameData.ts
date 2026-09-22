@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { COPY } from "../copy";
 import type { GameData } from "../game/types";
 
 type Status =
@@ -17,7 +18,7 @@ export function useGameData(): Status & { retry: () => void } {
     setStatus({ status: "loading" });
     fetch(`${import.meta.env.BASE_URL}game_data.json`, { signal: controller.signal })
       .then((res) => {
-        if (!res.ok) throw new Error(`El servidor respondió ${res.status}.`);
+        if (!res.ok) throw new Error(COPY.errors.http(res.status));
         return res.json() as Promise<GameData>;
       })
       .then((data) => setStatus({ status: "ready", data }))

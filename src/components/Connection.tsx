@@ -1,3 +1,4 @@
+import { COPY } from "../copy";
 import { BUTTON_GHOST } from "./ui";
 
 interface ConnectionProps {
@@ -15,20 +16,20 @@ export function Connection({ unreachable, late, onRefresh }: ConnectionProps) {
     <div className="mt-8 border-t border-line pt-3">
       {unreachable && (
         <p className="mb-2 text-sm font-semibold text-miss">
-          No estamos alcanzando al host. Revisa la señal y vuelve a intentar.
+          {COPY.connection.unreachable}
         </p>
       )}
       {late && (
         <p className="mb-2 text-sm font-semibold text-miss">
-          Tu respuesta llegó después de que el host revelara, así que esta ronda no te cuenta.
+          {COPY.connection.late}
         </p>
       )}
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-xs text-muted">
-          Lo que ves es lo último que dijo el host. Si algo no cuadra, refresca.
+          {COPY.connection.hint}
         </p>
         <button type="button" onClick={onRefresh} className={`${BUTTON_GHOST} shrink-0`}>
-          Refrescar
+          {COPY.connection.refresh}
         </button>
       </div>
     </div>

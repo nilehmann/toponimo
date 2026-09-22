@@ -19,6 +19,8 @@ referencia: si el código y ese documento no coinciden, hay que arreglar uno de 
   buscar geometría por nombre: el 39% de los nombres jugables calza con más de una entidad del
   censo. `export.py` verifica que el archivo exista y deja el id vacío si no, porque un 404 en
   medio de una ronda no tiene arreglo.
+- Los textos que ve quien juega viven en `src/copy.ts`; los componentes no llevan texto suelto.
+  Los que se completan en tiempo de ejecución son funciones, para que `tsc` vigile los parámetros.
 - Los colores son tokens de `@theme` en `src/index.css`; el tema oscuro solo redefine esas variables
   en `:root[data-theme="dark"]`. No hace falta `dark:` en las utilidades.
 - Al tocar los filtros de `build_fake.py`, revisar a mano una muestra de inventados: los filtros son

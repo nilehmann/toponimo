@@ -1,12 +1,14 @@
 import type { Ref } from "react";
 
+import { COPY } from "../copy";
 import type { Guess, Toponym } from "../game/types";
 import { BUTTON_NEUTRAL } from "./ui";
 
 function sentence(toponym: Toponym, guess: Guess | undefined): string {
-  if (guess === undefined) return toponym.real ? "Existe." : "Es inventado.";
-  if (guess !== toponym.real) return toponym.real ? "Existe." : "Es inventado.";
-  return toponym.real ? "Correcto, existe." : "Correcto, es inventado.";
+  if (guess === undefined || guess !== toponym.real) {
+    return toponym.real ? COPY.reveal.isReal : COPY.reveal.isFake;
+  }
+  return toponym.real ? COPY.reveal.rightReal : COPY.reveal.rightFake;
 }
 
 interface VerdictProps {
@@ -32,8 +34,8 @@ export function Detail({ toponym }: { toponym: Toponym }) {
   return (
     <p className="mt-3">
       {toponym.real
-        ? `Comuna de ${toponym.comuna}, ${toponym.region}.`
-        : "Este nombre no figura entre las localidades del Censo 2017."}
+        ? COPY.reveal.where(toponym.comuna, toponym.region)
+        : COPY.reveal.notInCensus}
     </p>
   );
 }
@@ -55,12 +57,12 @@ export function Next({ last, onNext, upToDate, ref }: NextProps) {
     <div className="sticky bottom-0 -mx-5 mt-6 border-t border-line bg-ground px-5 py-3">
       {onNext ? (
         <button ref={ref} type="button" onClick={onNext} className={`${BUTTON_NEUTRAL} w-full`}>
-          {last ? "Ver resultado" : "Siguiente letrero"}
+          {last ? COPY.round.seeResult : COPY.round.next}
           {upToDate && <span className="block text-sm font-semibold text-muted">{upToDate}</span>}
         </button>
       ) : (
         <p className="text-center text-sm text-muted">
-          {last ? "Esperando el resultado." : "Esperando al host."}
+          {last ? COPY.round.waitingResult : COPY.round.waitingHost}
         </p>
       )}
     </div>

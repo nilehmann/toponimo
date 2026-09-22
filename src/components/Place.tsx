@@ -3,6 +3,8 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useRef, useState } from "react";
 
+import { COPY } from "../copy";
+
 /** Lo que escribe `build_geo.py` en data/processed/geo/{id}.json. Es GeoJSON para que Leaflet lo
  *  dibuje sin traducción, con los datos de la ficha colgando de `properties`. */
 interface Feature {
@@ -80,7 +82,7 @@ export function Place({ geo, name, comuna, region }: PlaceProps) {
     setFailed(false);
     fetch(`${import.meta.env.BASE_URL}geo/${geo}.json`, { signal: controller.signal })
       .then((res) => {
-        if (!res.ok) throw new Error(`El servidor respondió ${res.status}.`);
+        if (!res.ok) throw new Error(COPY.errors.http(res.status));
         return res.json() as Promise<Feature>;
       })
       .then(setPlace)
@@ -114,32 +116,30 @@ export function Place({ geo, name, comuna, region }: PlaceProps) {
       <div className="overflow-hidden rounded-xl border border-line">
         {failed ? (
           <p className="flex h-72 items-center justify-center bg-btn px-6 text-center text-muted">
-            No se pudo cargar el mapa.
+            {COPY.reveal.mapFailed}
           </p>
         ) : (
           <div
             ref={node}
             role="img"
-            aria-label={`Mapa de ${name}`}
+            aria-label={COPY.reveal.map(name)}
             className="h-72 w-full bg-btn"
           />
         )}
       </div>
 
       <h2 className="mt-4 text-3xl leading-tight font-extrabold text-ok">{name}</h2>
-      <p className="mt-0.5 text-muted">
-        Comuna de {comuna}, {region}.
-      </p>
+      <p className="mt-0.5 text-muted">{COPY.reveal.where(comuna, region)}</p>
 
       {place && (
         <dl className="mt-3 flex gap-3">
           {pop !== undefined && (
-            <Fact label="Habitantes" value={pop.toLocaleString("es-CL")} />
+            <Fact label={COPY.reveal.population} value={pop.toLocaleString("es-CL")} />
           )}
           <Fact
-            label="Referencia"
-            value={`${place.properties.km} km`}
-            note={`de ${place.properties.ref}`}
+            label={COPY.reveal.reference}
+            value={COPY.reveal.km(place.properties.km)}
+            note={COPY.reveal.from(place.properties.ref)}
           />
         </dl>
       )}

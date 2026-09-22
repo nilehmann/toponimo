@@ -3,6 +3,7 @@ import { Suspense, lazy, type ReactNode } from "react";
 import { Home } from "./components/Home";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { BUTTON_GHOST, BUTTON_SIGN } from "./components/ui";
+import { COPY } from "./copy";
 import { Game } from "./Game";
 import type { GameData } from "./game/types";
 import { useGameData } from "./hooks/useGameData";
@@ -36,16 +37,16 @@ function Session({ data, theme }: { data: GameData; theme: Theme }) {
       <div className="absolute top-4 right-5">
         <ThemeToggle pref={theme.pref} onPick={theme.set} />
       </div>
-      <h1 className="text-4xl font-extrabold tracking-tight">Topónimo</h1>
+      <h1 className="text-4xl font-extrabold tracking-tight">{COPY.app.title}</h1>
 
       {session.status.status === "opening" && <p className="text-muted">{session.status.message}</p>}
 
       {session.status.status === "failed" && (
         <>
-          <p className="text-xl font-extrabold text-miss">No se pudo abrir la sala.</p>
+          <p className="text-xl font-extrabold text-miss">{COPY.app.openFailed}</p>
           <p className="max-w-sm text-muted">{session.status.message}</p>
           <button type="button" onClick={session.controls.dismissError} className={BUTTON_SIGN}>
-            Volver al inicio
+            {COPY.app.backHome}
           </button>
         </>
       )}
@@ -69,7 +70,7 @@ export default function App() {
   if (gameData.status === "loading") {
     return (
       <Screen>
-        <p className="text-muted">Cargando localidades…</p>
+        <p className="text-muted">{COPY.app.loading}</p>
       </Screen>
     );
   }
@@ -77,10 +78,10 @@ export default function App() {
   if (gameData.status === "error") {
     return (
       <Screen>
-        <p className="text-xl font-extrabold text-miss">No se pudieron cargar las localidades.</p>
+        <p className="text-xl font-extrabold text-miss">{COPY.app.loadFailed}</p>
         <p className="text-muted">{gameData.message}</p>
         <button type="button" onClick={gameData.retry} className={BUTTON_GHOST}>
-          Reintentar
+          {COPY.app.retry}
         </button>
       </Screen>
     );

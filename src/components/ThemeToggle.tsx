@@ -1,5 +1,6 @@
 import { type KeyboardEvent, type ReactElement, useEffect, useRef, useState } from "react";
 
+import { COPY } from "../copy";
 import type { ThemePref } from "../hooks/useTheme";
 
 /** Los tres íconos comparten caja, grosor y remate para que el botón no cambie de peso al pasar
@@ -62,9 +63,9 @@ function Check() {
 }
 
 const OPTIONS: { pref: ThemePref; label: string; Icon: () => ReactElement }[] = [
-  { pref: "system", label: "Sistema", Icon: Auto },
-  { pref: "light", label: "Claro", Icon: Sun },
-  { pref: "dark", label: "Oscuro", Icon: Moon },
+  { pref: "system", label: COPY.theme.system, Icon: Auto },
+  { pref: "light", label: COPY.theme.light, Icon: Sun },
+  { pref: "dark", label: COPY.theme.dark, Icon: Moon },
 ];
 
 const ITEM = "[role='menuitemradio']";
@@ -130,8 +131,8 @@ export function ThemeToggle({ pref, onPick }: ThemeToggleProps) {
         onClick={() => setOpen((shown) => !shown)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Tema: ${current.label}. Cambiar tema.`}
-        title={`Tema: ${current.label}`}
+        aria-label={COPY.theme.button(current.label)}
+        title={COPY.theme.tooltip(current.label)}
         className="flex cursor-pointer items-center gap-0.5 rounded-md border border-line py-1.5 pr-1 pl-1.5 text-muted hover:bg-btn-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warn"
       >
         <current.Icon />
@@ -142,7 +143,7 @@ export function ThemeToggle({ pref, onPick }: ThemeToggleProps) {
         /* Los controles de Leaflet viven en z-index 1000, así que el menú tiene que ir arriba. */
         <div
           role="menu"
-          aria-label="Tema"
+          aria-label={COPY.theme.menu}
           className="absolute top-full right-0 z-[1100] mt-1 w-40 overflow-hidden rounded-md border border-line bg-btn py-1 shadow-lg"
         >
           {OPTIONS.map(({ pref: option, label, Icon }) => (

@@ -11,6 +11,7 @@ import { Summary } from "./components/Summary";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Ticks } from "./components/Ticks";
 import { BUTTON_GHOST } from "./components/ui";
+import { COPY } from "./copy";
 import { type AnyGame, answered, guessOf, phase, revealedToponym, score } from "./game/session";
 import { ROUNDS } from "./game/toponyms";
 import type { PlayerId, Snapshot } from "./game/types";
@@ -34,8 +35,7 @@ function missing(snapshot: Snapshot, game: AnyGame): string | null {
   if (snapshot.participants.length < 2) return null;
   const done = answered(game);
   const left = snapshot.participants.filter((id) => !done.has(id)).length;
-  if (left === 0) return "Respondieron todos.";
-  return left === 1 ? "Falta uno por responder." : `Faltan ${left} por responder.`;
+  return COPY.round.missing(left);
 }
 
 interface GameProps {
@@ -81,7 +81,7 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
   if (!snapshot || me === null) {
     return (
       <Shell theme={theme} onLeave={session.controls.goHome}>
-        <p className="mt-6 text-muted">Preguntándole al host quién eres…</p>
+        <p className="mt-6 text-muted">{COPY.app.askingWhoAmI}</p>
         <Connection unreachable={view.unreachable} late={false} onRefresh={session.refresh} />
       </Shell>
     );
@@ -97,7 +97,7 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
   const alone = snapshot.participants.length < 2;
   const late = isHost ? behind(snapshot, view) : undefined;
   const total = snapshot.participants.length;
-  const upToDate = late ? `${total - late.size} de ${total} al día` : undefined;
+  const upToDate = late ? COPY.round.upToDate(total - late.size, total) : undefined;
 
   return (
     <Shell
@@ -107,10 +107,10 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
         game && where !== "summary" ? (
           <p className="text-right text-sm text-muted">
             <span className="block">
-              Ronda {game.current + 1} de {ROUNDS}
+              {COPY.round.counter(game.current + 1, ROUNDS)}
             </span>
             <span className="block font-semibold text-ink">
-              {me === null ? "" : `${score(game, me)} ${score(game, me) === 1 ? "acierto" : "aciertos"}`}
+              {me === null ? "" : COPY.round.score(score(game, me))}
             </span>
           </p>
         ) : null
@@ -135,8 +135,7 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
         <section aria-live="polite">
           {!toponym && (
             <p className="mt-1.5 mb-4 max-w-lg text-muted">
-              Cada letrero indica una localidad rural de Chile, o un nombre inventado para
-              confundirte.
+              {COPY.round.intro}
             </p>
           )}
 
@@ -167,7 +166,7 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
           {!alone && (isHost || toponym !== null) && (
             <>
               <h2 className="mt-8 text-base font-semibold text-muted">
-                {toponym ? "Quién cayó" : (missing(snapshot, game) ?? "La sala")}
+                {toponym ? COPY.round.whoFell : (missing(snapshot, game) ?? COPY.round.room)}
               </h2>
               <Players snapshot={snapshot} game={game} me={me} behind={late} />
               {isHost && !toponym && (
@@ -176,7 +175,7 @@ export function Game({ session, theme, keyboard = true }: GameProps) {
                   onClick={session.reveal}
                   className="mt-4 min-h-13 w-full cursor-pointer rounded-lg border-2 border-ink bg-btn px-4 py-4 text-lg font-extrabold text-ink hover:bg-btn-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warn"
                 >
-                  Revelar el letrero
+                  {COPY.round.reveal}
                 </button>
               )}
             </>
@@ -213,7 +212,7 @@ function Shell({ children, theme, onLeave, progress }: ShellProps) {
       <header className="flex items-baseline justify-between gap-4">
         <h1 className="text-xl font-extrabold tracking-tight">
           <button type="button" onClick={onLeave} className="cursor-pointer">
-            Topónimo
+            {COPY.app.title}
           </button>
         </h1>
         <div className="flex items-center gap-3">
@@ -226,13 +225,9 @@ function Shell({ children, theme, onLeave, progress }: ShellProps) {
 
       <footer className="mt-10 border-t border-line pt-3 text-xs text-muted">
         <button type="button" onClick={onLeave} className={`${BUTTON_GHOST} mb-3`}>
-          Salir
+          {COPY.app.leave}
         </button>
-        <p>
-          Localidades, aldeas y pueblos reales tomados de la cartografía del Censo 2017 (INE). Los
-          nombres inventados se generaron a partir de esos mismos nombres y se verificó que no
-          aparezcan en ese registro.
-        </p>
+        <p>{COPY.app.credits}</p>
       </footer>
     </main>
   );

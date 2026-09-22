@@ -1,5 +1,6 @@
 import type { MqttClient } from "mqtt";
 
+import { COPY } from "../copy";
 import type { DeviceId, RoomCode } from "../game/types";
 import { BROKERS, topics } from "./brokers";
 import { brokerFor, newCode } from "./code";
@@ -62,7 +63,7 @@ function open(url: string, id: string): Promise<MqttClient> {
 
       let settled = false;
       // `connectTimeout` reintenta en vez de rendirse, así que el plazo se pone acá.
-      const timer = setTimeout(() => fail(new Error(`${url} no contestó`)), CONNECT_TIMEOUT);
+      const timer = setTimeout(() => fail(new Error(COPY.errors.brokerSilent(url))), CONNECT_TIMEOUT);
       function done() {
         settled = true;
         clearTimeout(timer);
@@ -160,7 +161,7 @@ export async function openRoom(
   deviceId: DeviceId,
 ): Promise<Transport> {
   const url = brokerFor(code);
-  if (!url) throw new Error("Ese código no corresponde a ninguna sala.");
+  if (!url) throw new Error(COPY.errors.noRoom);
   return wrapClient(await open(url, clientId(code, deviceId)), code, role, deviceId);
 }
 
@@ -177,5 +178,5 @@ export async function createRoom(deviceId: DeviceId): Promise<{ code: RoomCode; 
       failures.push(error instanceof Error ? error.message : String(error));
     }
   }
-  throw new Error(`Ningún broker contestó. ${failures.join("; ")}`);
+  throw new Error(COPY.errors.noBroker(failures));
 }
