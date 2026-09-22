@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
+import { COPY } from "../copy";
 import { createSession } from "../game/session";
 import { buildToponyms } from "../game/toponyms";
 import type { GameData, Guess, Identity, RoomCode, SessionState } from "../game/types";
@@ -136,12 +137,12 @@ export function useSession(data: GameData): Session {
 
     return {
       playSolo() {
-        const token = begin("Sorteando letreros…");
+        const token = begin(COPY.opening.solo);
         // Una sala de un jugador que es su propio host y no se conecta a ninguna parte.
         const state = createSession(
           newCode(0),
           identity.deviceId,
-          identity.name || "Vos",
+          identity.name || COPY.home.soloName,
           Date.now(),
         );
         const runtime = hostOn(state, createNullTransport(), "solo");
@@ -152,7 +153,7 @@ export function useSession(data: GameData): Session {
       },
 
       createRoom(name: string) {
-        const token = begin("Buscando un broker…");
+        const token = begin(COPY.opening.create);
         setIdentity(rememberName(identity, name));
         void createRoom(identity.deviceId)
           .then(({ code, transport }) => {
@@ -170,7 +171,7 @@ export function useSession(data: GameData): Session {
       },
 
       joinRoom(code: RoomCode, name: string) {
-        const token = begin("Entrando a la sala…");
+        const token = begin(COPY.opening.join);
         setIdentity(rememberName(identity, name));
         void openRoom(code, "client", identity.deviceId)
           .then((transport) => {
@@ -189,7 +190,7 @@ export function useSession(data: GameData): Session {
         const state = loadHostSession(slot);
         if (!state) return;
         const shared = slot === "room";
-        const token = begin(shared ? "Reabriendo la sala…" : "Retomando la partida…");
+        const token = begin(shared ? COPY.opening.reopenRoom : COPY.opening.resumeSolo);
         const transport = shared
           ? openRoom(state.code, "host", identity.deviceId)
           : Promise.resolve<Transport>(createNullTransport());

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { COPY } from "../copy";
+
 /** El QR es lo que sirve cuando están todos en la misma mesa. Se dibuja como un solo `path`
  *  para que escale sin bordes borrosos y tome los colores del tema. */
 export function Qr({ value, className = "" }: { value: string; className?: string }) {
@@ -33,7 +35,7 @@ export function Qr({ value, className = "" }: { value: string; className?: strin
   if (failed) {
     return (
       <p className="max-w-56 text-center text-sm text-muted">
-        No se pudo dibujar el QR. Pásales el código o el link.
+        {COPY.lobby.qrFailed}
       </p>
     );
   }
@@ -45,7 +47,7 @@ export function Qr({ value, className = "" }: { value: string; className?: strin
     <svg
       viewBox={`0 0 ${box} ${box}`}
       role="img"
-      aria-label="Código QR para entrar a la sala"
+      aria-label={COPY.lobby.qrLabel}
       className={className}
       shapeRendering="crispEdges"
     >

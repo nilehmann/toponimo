@@ -1,3 +1,5 @@
+import { COPY } from "../copy";
+
 interface SignProps {
   name: string;
   revealed: boolean;
@@ -19,7 +21,7 @@ export function Sign({ name, revealed, real, comuna }: SignProps) {
         </div>
         {revealed && !real && (
           <div className="pointer-events-none absolute -inset-x-8 top-5/6 -translate-y-1/2 -rotate-6 bg-warn py-1 text-center text-lg font-extrabold text-warn-ink">
-            Inventado
+            {COPY.reveal.fakeBand}
           </div>
         )}
       </div>

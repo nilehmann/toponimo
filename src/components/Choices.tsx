@@ -1,3 +1,4 @@
+import { COPY } from "../copy";
 import type { Guess } from "../game/types";
 import { BUTTON_SIGN, BUTTON_WARN, KBD, SELECTED } from "./ui";
 
@@ -19,7 +20,7 @@ export function Choices({ onAnswer, selected, waiting }: ChoicesProps) {
           className={`${BUTTON_SIGN} ${selected === true ? SELECTED : ""}`}
           onClick={() => onAnswer(true)}
         >
-          Existe
+          {COPY.round.real}
         </button>
         <button
           type="button"
@@ -27,7 +28,7 @@ export function Choices({ onAnswer, selected, waiting }: ChoicesProps) {
           className={`${BUTTON_WARN} ${selected === false ? SELECTED : ""}`}
           onClick={() => onAnswer(false)}
         >
-          Inventado
+          {COPY.round.fake}
         </button>
       </div>
       <p className="mt-2.5 text-center text-sm text-muted">
@@ -35,7 +36,8 @@ export function Choices({ onAnswer, selected, waiting }: ChoicesProps) {
           waiting
         ) : (
           <>
-            Teclado: <kbd className={KBD}>E</kbd> existe, <kbd className={KBD}>I</kbd> inventado
+            {COPY.round.keyboard} <kbd className={KBD}>E</kbd> {COPY.round.keyReal},{" "}
+            <kbd className={KBD}>I</kbd> {COPY.round.keyFake}
           </>
         )}
       </p>

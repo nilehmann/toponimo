@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 
+import { COPY } from "../copy";
 import { phase } from "../game/session";
 import type { Identity, RoomCode, SessionState } from "../game/types";
 import { CODE_LENGTH, isValidCode, normalizeCode } from "../net/code";
@@ -46,10 +47,10 @@ function Field(props: {
  *  existe de esa sala, así que conviene que se note qué se está por retomar. */
 function savedLabel(slot: Slot, state: SessionState): string {
   const game = state.game;
-  const what = slot === "room" ? `la sala ${state.code}` : "tu partida";
-  if (game === null) return `Retomar ${what}`;
-  if (phase(game) === "summary") return `Volver al resumen de ${what}`;
-  return `Retomar ${what} en la ronda ${game.current + 1}`;
+  const what = slot === "room" ? COPY.home.savedRoom(state.code) : COPY.home.savedSolo;
+  if (game === null) return COPY.home.resume(what);
+  if (phase(game) === "summary") return COPY.home.backToSummary(what);
+  return COPY.home.resumeAt(what, game.current + 1);
 }
 
 export function Home({ identity, saved, invited, controls }: HomeProps) {
@@ -81,10 +82,7 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
   if (mode === "menu") {
     return (
       <>
-        <p className="max-w-sm text-muted">
-          Quince letreros por partida, mitad reales y mitad chamullo. Sola, o con quien tengas al
-          lado.
-        </p>
+        <p className="max-w-sm text-muted">{COPY.home.pitch}</p>
         <div className="mt-2 flex w-full max-w-xs flex-col gap-3">
           {SLOTS.map((slot) => {
             const state = saved[slot];
@@ -103,7 +101,7 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
                   onClick={() => controls.forgetSaved(slot)}
                   className={BUTTON_GHOST}
                 >
-                  {slot === "room" ? "Olvidar la sala" : "Olvidar la partida"}
+                  {slot === "room" ? COPY.home.forgetRoom : COPY.home.forgetSolo}
                 </button>
               </div>
             );
@@ -114,17 +112,17 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
               onClick={() => controls.joinRoom(back, identity.name)}
               className={BUTTON_NEUTRAL}
             >
-              Volver a la sala {back}
+              {COPY.home.backToRoom(back)}
             </button>
           )}
           <button type="button" onClick={controls.playSolo} className={BUTTON_SIGN}>
-            Jugar solo
+            {COPY.home.playSolo}
           </button>
           <button type="button" onClick={() => setMode("create")} className={BUTTON_WARN}>
-            Crear sala
+            {COPY.home.createRoom}
           </button>
           <button type="button" onClick={() => setMode("join")} className={BUTTON_NEUTRAL}>
-            Entrar con código
+            {COPY.home.joinWithCode}
           </button>
         </div>
       </>
@@ -136,24 +134,24 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
   return (
     <form onSubmit={submit} className="flex w-full max-w-xs flex-col gap-4">
       <h2 className="text-xl font-extrabold">
-        {mode === "create" ? "Crear una sala" : "Entrar a una sala"}
+        {mode === "create" ? COPY.home.createTitle : COPY.home.joinTitle}
       </h2>
       {mode === "join" && (
         <Field
-          label="Código de la sala"
+          label={COPY.home.codeLabel}
           value={code}
           onChange={setCode}
-          placeholder="7 caracteres"
+          placeholder={COPY.home.codePlaceholder}
           maxLength={CODE_LENGTH + 4}
           mono
           autoFocus={!invited}
         />
       )}
       <Field
-        label="Tu nombre"
+        label={COPY.home.nameLabel}
         value={name}
         onChange={setName}
-        placeholder="Como te dicen"
+        placeholder={COPY.home.namePlaceholder}
         maxLength={NAME_LIMIT}
         autoFocus={mode === "create" || invited !== null}
       />
@@ -162,10 +160,10 @@ export function Home({ identity, saved, invited, controls }: HomeProps) {
         disabled={blocked}
         className={`${BUTTON_SIGN} disabled:cursor-not-allowed disabled:opacity-50`}
       >
-        {mode === "create" ? "Crear la sala" : "Entrar"}
+        {mode === "create" ? COPY.home.createSubmit : COPY.home.joinSubmit}
       </button>
       <button type="button" onClick={() => setMode("menu")} className={BUTTON_GHOST}>
-        Volver
+        {COPY.home.back}
       </button>
     </form>
   );

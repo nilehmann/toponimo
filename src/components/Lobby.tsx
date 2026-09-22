@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { COPY } from "../copy";
 import type { PlayerId, RoomCode, Snapshot } from "../game/types";
 import { roomLink } from "../net/code";
 import { Players } from "./Players";
@@ -25,7 +26,7 @@ function Invite({ code }: { code: RoomCode }) {
 
   return (
     <div className="mt-6 flex flex-col items-center gap-3">
-      <p className="text-sm text-muted">Pásales el código, el link o el QR</p>
+      <p className="text-sm text-muted">{COPY.lobby.invite}</p>
       <p className="font-mono text-4xl font-extrabold tracking-[0.2em] text-sign">{spaced(code)}</p>
       <Qr value={link} className="h-44 w-44 rounded-lg border-4 border-white shadow-md" />
       <button
@@ -38,7 +39,7 @@ function Invite({ code }: { code: RoomCode }) {
           );
         }}
       >
-        {copied ? "Link copiado" : "Copiar link"}
+        {copied ? COPY.lobby.linkCopied : COPY.lobby.copyLink}
       </button>
     </div>
   );
@@ -51,23 +52,23 @@ export function Lobby({ snapshot, me, code, onStart }: LobbyProps) {
     <section aria-live="polite">
       <p className="mt-1.5 max-w-lg text-muted">
         {onStart
-          ? "Cuando estén todos, empiezan. El host reparte los letreros y decide cuándo se revela cada uno."
-          : "Ya estás en la sala. Empieza cuando el host lo diga."}
+          ? COPY.lobby.hostIntro
+          : COPY.lobby.guestIntro}
       </p>
 
       {code && onStart && <Invite code={code} />}
 
       <h2 className="mt-8 text-base font-semibold text-muted">
-        {waiting === 1 ? "Estás solo" : `${waiting} en la sala`}
+        {COPY.lobby.count(waiting)}
       </h2>
       <Players snapshot={snapshot} game={null} me={me} />
 
       {onStart ? (
         <button type="button" onClick={onStart} className={`${BUTTON_SIGN} mt-6 w-full`}>
-          Empezar la ruta
+          {COPY.lobby.start}
         </button>
       ) : (
-        <p className="mt-6 text-center text-sm text-muted">Esperando a que el host empiece.</p>
+        <p className="mt-6 text-center text-sm text-muted">{COPY.lobby.waitingStart}</p>
       )}
     </section>
   );

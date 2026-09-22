@@ -1,3 +1,4 @@
+import { COPY } from "../copy";
 import { type AnyGame, revealedRounds, revealedToponym } from "../game/session";
 import { ROUNDS } from "../game/toponyms";
 import type { PlayerId } from "../game/types";
@@ -13,11 +14,11 @@ function color(game: AnyGame, me: PlayerId | null, i: number): string {
 
 export function Ticks({ game, me }: { game: AnyGame; me: PlayerId | null }) {
   return (
-    <ol aria-label="Progreso" className="mb-7 grid grid-cols-15 gap-1">
+    <ol aria-label={COPY.round.progress} className="mb-7 grid grid-cols-15 gap-1">
       {Array.from({ length: ROUNDS }, (_, i) => (
         <li
           key={i}
-          aria-label={`Ronda ${i + 1}`}
+          aria-label={COPY.round.tick(i + 1)}
           className={`h-1.5 rounded-full ${color(game, me, i)}`}
         />
       ))}
