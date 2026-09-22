@@ -437,7 +437,7 @@ hace falta al reabrir para saber qué transporte levantar y si hay a quién most
 el estado una sala recién creada y una partida en solitario se ven idénticas, con un solo jugador
 que es su propio host.
 
-Y sobre todo, con un solo cajón tocar «Jugar solo» borraría la única copia autoritativa de una sala
+Y sobre todo, con un solo cajón tocar «Viajar solo» borraría la única copia autoritativa de una sala
 en curso, que es lo mismo que perderla: el botón está justo debajo del de retomarla.
 
 ```ts

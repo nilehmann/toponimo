@@ -10,7 +10,7 @@ export const COPY = {
     loading: "Cargando localidades…",
     loadFailed: "No se pudieron cargar las localidades.",
     retry: "Reintentar",
-    openFailed: "No se pudo abrir la sala.",
+    openFailed: "No se pudo armar la caravana.",
     backHome: "Volver al inicio",
     leave: "Salir",
     credits:
@@ -18,7 +18,7 @@ export const COPY = {
       "nombres inventados se generaron a partir de esos mismos nombres y se verificó que no " +
       "aparezcan en ese registro.",
     /** Mientras el host no dice quién es esta persona. */
-    askingWhoAmI: "Preguntándole al host quién eres…",
+    askingWhoAmI: "Preguntándole al guía quién eres…",
   },
 
   theme: {
@@ -34,8 +34,8 @@ export const COPY = {
   opening: {
     solo: "Sorteando letreros…",
     create: "Buscando un broker…",
-    join: "Entrando a la sala…",
-    reopenRoom: "Reabriendo la sala…",
+    join: "Uniéndote a la caravana…",
+    reopenRoom: "Volviendo a la caravana…",
     resumeSolo: "Retomando la partida…",
   },
 
@@ -43,25 +43,25 @@ export const COPY = {
     pitch:
       "Toma la ruta y fíjate bien en los letreros que van apareciendo en la carretera. Algunos " +
       "señalan pueblos de verdad y otros son puro chamullo. ¿Cuánto conoces Chile?",
-    savedRoom: (code: string) => `la sala ${code}`,
+    savedRoom: (code: string) => `la caravana ${code}`,
     savedSolo: "tu partida",
     resume: (what: string) => `Retomar ${what}`,
     resumeAt: (what: string, round: number) => `Retomar ${what} en la ronda ${round}`,
     backToSummary: (what: string) => `Volver al resumen de ${what}`,
-    forgetRoom: "Olvidar la sala",
+    forgetRoom: "Dejar la caravana",
     forgetSolo: "Olvidar la partida",
-    backToRoom: (code: string) => `Volver a la sala ${code}`,
-    playSolo: "Jugar solo",
-    createRoom: "Crear sala",
-    joinWithCode: "Entrar con código",
-    createTitle: "Crear una sala",
-    joinTitle: "Entrar a una sala",
-    codeLabel: "Código de la sala",
+    backToRoom: (code: string) => `Volver a la caravana ${code}`,
+    playSolo: "Viajar solo",
+    createRoom: "Armar una caravana",
+    joinWithCode: "Unirse a una caravana",
+    createTitle: "Armar una caravana",
+    joinTitle: "Unirse a una caravana",
+    codeLabel: "Código de la caravana",
     codePlaceholder: "7 caracteres",
     nameLabel: "Tu nombre",
     namePlaceholder: "Como te dicen",
-    createSubmit: "Crear la sala",
-    joinSubmit: "Entrar",
+    createSubmit: "Armar la caravana",
+    joinSubmit: "Unirse",
     back: "Volver",
     /** El nombre de quien juega solo sin haber escrito uno nunca. */
     soloName: "Vos",
@@ -69,16 +69,16 @@ export const COPY = {
 
   lobby: {
     hostIntro:
-      "Cuando estén todos, empiezan. El host reparte los letreros y decide cuándo se revela cada uno.",
-    guestIntro: "Ya estás en la sala. Empieza cuando el host lo diga.",
+      "Cuando estén todos, parten. Tú guías la caravana y decides cuándo se revela cada letrero.",
+    guestIntro: "Ya estás en la caravana. Parten cuando el guía lo diga.",
     invite: "Pásales el código, el link o el QR",
     copyLink: "Copiar link",
     linkCopied: "Link copiado",
-    qrLabel: "Código QR para entrar a la sala",
+    qrLabel: "Código QR para unirse a la caravana",
     qrFailed: "No se pudo dibujar el QR. Pásales el código o el link.",
-    count: (n: number) => (n === 1 ? "Estás solo" : `${n} en la sala`),
+    count: (n: number) => (n === 1 ? "Estás solo" : `${n} personas en la caravana`),
     start: "Empezar la ruta",
-    waitingStart: "Esperando a que el host empiece.",
+    waitingStart: "Esperando a que el guía dé la partida.",
   },
 
   round: {
@@ -97,19 +97,19 @@ export const COPY = {
         : n === 1
           ? "Falta uno por responder."
           : `Faltan ${n} por responder.`,
-    room: "La sala",
+    room: "La caravana",
     whoFell: "Quién cayó",
     reveal: "Revelar el letrero",
     upToDate: (n: number, total: number) => `${n} de ${total} al día`,
     next: "Siguiente",
     seeResult: "Ver resultado",
-    waitingHost: "Esperando al host.",
+    waitingHost: "Esperando al guía.",
     waitingResult: "Esperando el resultado.",
   },
 
   players: {
     me: "tú",
-    host: "host",
+    host: "guía",
     thinking: "Pensando",
     answered: "Respondió",
     right: "Acertó",
@@ -155,20 +155,20 @@ export const COPY = {
     wrong: "Fallaste",
     noAnswer: "Sin responder",
     again: "Jugar otra ruta",
-    waitingAgain: "Esperando a que el host reparta otra ruta.",
+    waitingAgain: "Esperando a que el guía elija otra ruta.",
   },
 
   connection: {
-    unreachable: "No estamos alcanzando al host. Revisa la señal y vuelve a intentar.",
-    late: "Tu respuesta llegó después de que el host revelara, así que esta ronda no te cuenta.",
-    hint: "Lo que ves es lo último que dijo el host. Si algo no cuadra, refresca.",
+    unreachable: "No logramos comunicarnos con el guía. Revisa la señal y vuelve a intentar.",
+    late: "Tu respuesta llegó después de que el guía revelara, así que esta ronda no te cuenta.",
+    hint: "Lo que ves es lo último que dijo el guía. Si algo no cuadra, refresca.",
     refresh: "Refrescar",
   },
 
   /** Llegan a la pantalla tal cual, como `message` del error. */
   errors: {
     http: (status: number) => `El servidor respondió ${status}.`,
-    noRoom: "Ese código no corresponde a ninguna sala.",
+    noRoom: "No hay ninguna caravana con ese código.",
     brokerSilent: (url: string) => `${url} no contestó`,
     noBroker: (failures: string[]) => `Ningún broker contestó. ${failures.join("; ")}`,
   },
