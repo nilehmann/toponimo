@@ -14,6 +14,11 @@ DBF: list[str] = [
     "entidades_indeterminadas_16r.dbf",
     "limites_urbanos_16r.dbf",
     "manzanas_aldeas_16r.dbf",
+    # Las dos que hacen falta para la población de ciudades y pueblos, que ninguna tabla trae
+    # hecha: las manzanas tienen los habitantes y las zonas dicen a qué área urbana pertenecen.
+    # `manzanas` pesa 113 MB en disco, pero comprimida son 4,8 MB de bajada.
+    "manzanas_indeterminadas_16r.dbf",
+    "zonas_16r.dbf",
 ]
 
 # Geometría de las tres capas de las que salen los topónimos jugables. Son 79 MB contra los

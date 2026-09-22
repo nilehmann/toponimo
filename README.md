@@ -33,9 +33,11 @@ npm run data     # scripts/ -> data/processed/*.json
 
 ## Datos reales
 
-Cartografía del Censo 2017 (INE), versión de [pachadotdev/censo2017-cartografias](https://github.com/pachadotdev/censo2017-cartografias) v0.4. `download.py` lee solo 4 tablas `.dbf` (~4 MB) del zip de 1,7 GB mediante HTTP Range.
+Cartografía del Censo 2017 (INE), versión de [pachadotdev/censo2017-cartografias](https://github.com/pachadotdev/censo2017-cartografias) v0.4. `download.py` lee solo 6 tablas `.dbf` del zip de 1,7 GB mediante HTTP Range: 6,5 MB de bajada, 150 MB ya descomprimidas.
 
 Se usan localidades rurales de 40 a 3.000 habitantes (suma de sus entidades), más pueblos y aldeas. Se excluyen los nombres de comuna y los genéricos (Sector, Km, Indeterminada…).
+
+Un mismo nombre lo reclaman varias entidades —hay 24 «El Manzano»— y se juega uno solo: gana el más poblado. Los habitantes de una localidad rural salen de sumar sus entidades; los de un pueblo no los trae ninguna tabla y hay que armarlos por zona censal (`zonas_16r` dice a qué área urbana pertenece cada zona, `manzanas_indeterminadas_16r` tiene los habitantes de cada una). Las aldeas se quedan sin el dato: el censo las clasifica como rurales, no figuran en `zonas_16r`, y su capa de manzanas no trae población ni una clave con qué cruzarla. Van con 0, así que solo se quedan con un nombre que nadie más reclame.
 
 ## Geometría
 
