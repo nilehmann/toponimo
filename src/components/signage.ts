@@ -3,17 +3,16 @@ export type Arrow = "left" | "up-left" | "up" | "up-right" | "right";
 
 export const ARROWS: readonly Arrow[] = ["left", "up-left", "up", "up-right", "right"];
 
-/** Una de cada cuatro. Si saliera siempre, la placa dejaría de verse y pasaría a ser decorado. */
-export const PLATE_ODDS = 1 / 4;
+/** Una de cada cuatro. Si saliera siempre, la distancia dejaría de verse y pasaría a ser decorado. */
+export const KM_ODDS = 1 / 4;
 
-/** Letras de rol de camino regional. Se sortean sin mirar la región del topónimo: si calzaran,
- *  la placa diría de dónde es un nombre real y un inventado quedaría con una letra cualquiera. */
-export const PLATE_LETTERS = "ABCDEFGHIJKLNPQRSTUVWXY";
+/** Lo más lejos que marca un letrero. Pasado eso ya no se indica un pueblo sino una ciudad. */
+export const KM_MAX = 199;
 
 export interface Signage {
   arrow: Arrow;
-  /** Rol de un camino regional, como «D-85», o null si este letrero no lleva placa. */
-  plate: string | null;
+  /** Kilómetros hasta el lugar, o null si este letrero no los marca. */
+  km: number | null;
 }
 
 /** FNV-1a de 32 bits. */
@@ -47,11 +46,7 @@ function pick<T>(items: ArrayLike<T>, r: number): T {
 export function signage(name: string): Signage {
   const next = stream(hash(name));
   const arrow = pick(ARROWS, next());
-  if (next() >= PLATE_ODDS) return { arrow, plate: null };
-
-  const letter = pick(PLATE_LETTERS, next());
-  // Los roles de dos cifras son tan comunes como los de tres; sorteando del 10 al 999 casi todos
-  // saldrían de tres.
-  const number = next() < 0.5 ? 10 + Math.floor(next() * 90) : 100 + Math.floor(next() * 900);
-  return { arrow, plate: `${letter}-${number}` };
+  if (next() >= KM_ODDS) return { arrow, km: null };
+  // Al cuadrado para que abunden los números chicos: los letreros de pueblo suelen estar cerca.
+  return { arrow, km: 2 + Math.floor(next() ** 2 * (KM_MAX - 1)) };
 }
