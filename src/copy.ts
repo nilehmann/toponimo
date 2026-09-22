@@ -120,10 +120,13 @@ export const COPY = {
   },
 
   reveal: {
+    /** Sin respuesta: no hay acierto ni error que anunciar. */
     isReal: "Existe.",
     isFake: "Es inventado.",
     rightReal: "Correcto, existe.",
     rightFake: "Correcto, es inventado.",
+    wrongReal: "Incorrecto, existe.",
+    wrongFake: "Incorrecto, es inventado.",
     /** La franja cruzada sobre el letrero. */
     fakeBand: "Inventado",
     where: (comuna: string, region: string) => `Comuna de ${comuna}, ${region}.`,
