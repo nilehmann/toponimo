@@ -1,5 +1,7 @@
-/** Estructura del nombre: a = una palabra, b = dos palabras, c = artículo + palabra. */
-export type Form = "a" | "b" | "c";
+/** Estructura del nombre: a = una palabra, b = dos palabras, c = artículo + palabra,
+ *  d = San/Santa + palabra. Cada forma existe de los dos lados: si alguna solo tuviera reales,
+ *  la forma sola daría la respuesta. */
+export type Form = "a" | "b" | "c" | "d";
 
 /** Fila compacta de `game_data.json`: los índices apuntan a `comunas` y `regions`, y `geo` nombra
  *  el archivo de `geo/` con el contorno del lugar. Va el archivo y no el nombre porque los nombres

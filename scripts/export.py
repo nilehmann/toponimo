@@ -24,13 +24,20 @@ def title(s: str) -> str:
 
 def form(n: str) -> Optional[str]:
     """Estructura del nombre. El juego sortea la forma antes que el nombre para que no delate la respuesta.
-    a: una palabra; b: dos palabras; c: artículo + palabra. El resto no se usa."""
+    a: una palabra; b: dos palabras; c: artículo + palabra; d: San/Santa + palabra. El resto no se usa.
+
+    Cada forma necesita inventados que la imiten, o la forma sola da la respuesta. Por eso quedan
+    afuera los de tres palabras y los «Santo X»: el castellano solo usa «Santo» antes de To- y Do-,
+    y los tres santos plausibles con esa inicial —Tomás, Toribio, Domingo— ya están en el censo,
+    así que no hay con qué armar un «Santo X» inventado y todo letrero así sería real."""
     w = n.split()
     if len(w) == 1:
         return "a"
     if len(w) == 2 and w[0] in ("EL", "LA", "LOS", "LAS"):
         return "c"
-    if len(w) == 2 and w[0] not in ("SAN", "SANTA", "SANTO"):
+    if len(w) == 2 and w[0] in ("SAN", "SANTA"):
+        return "d"
+    if len(w) == 2 and w[0] != "SANTO":
         return "b"
     return None
 
@@ -54,7 +61,8 @@ def main() -> None:
         print("aviso: no hay data/processed/geo, ningún topónimo va a tener mapa")
     missing = 0
 
-    out: dict[str, Any] = {"R": {"a": [], "b": [], "c": []}, "F": {"a": [], "b": [], "c": []}}
+    out: dict[str, Any] = {"R": {"a": [], "b": [], "c": [], "d": []},
+                           "F": {"a": [], "b": [], "c": [], "d": []}}
     for r in real:
         if f := form(r["name"]):
             has = (geo / f"{r['id']}.json").exists()

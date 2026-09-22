@@ -214,5 +214,87 @@ while got < 90 and tries < 5000:  # hay menos candidatos que el objetivo; el top
     add(n, r["region"], "art")
     got += 1
 
+# ---------- 5. San/Santa + nombre de pila ausente del censo ----------
+# El censo no usa santos de calendario: hay SAN CARLITOS, SAN NICANOR, SANTA FANNY, SANTA OLGA.
+# El patrón real es «San/Santa + nombre de pila», normalmente el de la familia del fundo, así que
+# un nombre de pila que no esté en el censo alcanza para pasar por topónimo.
+#
+# La lista mezcla santos de calendario con nombres de pila a secas a propósito: entre los reales
+# están los canónicos de siempre —San José, San Juan, Santa Rosa—, y si los inventados fueran solo
+# rarezas, «santo conocido» pasaría a significar «real» y el prefijo volvería a delatar.
+#
+# «Santo X» queda afuera: el castellano solo lo usa antes de To- y Do-, y los tres santos
+# plausibles con esa inicial ya están en el censo, así que no hay con qué armar uno inventado.
+# `form()` en export.py tampoco lo acepta, por la misma razón.
+NAMES_M = """ABELARDO ADRIÁN ALBERTO ALEJANDRO ALEJO ALFREDO AMADEO AMBROSIO ANACLETO ANICETO
+ANSELMO AQUILINO ARCADIO ARMANDO ARTURO ATILIO AURELIO BALDOMERO BALTASAR BASILIO BENIGNO BENITO
+BERNABÉ BONIFACIO BRUNO CALIXTO CÁNDIDO CASIMIRO CAYETANO CELESTINO CEFERINO CIPRIANO CIRIACO
+CIRILO CLAUDIO CLODOMIRO CONRADO COSME DÁMASO DAMIÁN DEMETRIO DESIDERIO DIONISIO EDMUNDO EDUARDO
+ELEUTERIO ELISEO EPIFANIO ERASMO ERNESTO EUSEBIO EUSTAQUIO EVARISTO EZEQUIEL FAUSTINO FEDERICO
+FIDEL FILIBERTO FORTUNATO FULGENCIO GASPAR GENARO GERVASIO GONZALO GRACIANO GUMERSINDO HERIBERTO
+HIGINIO HILARIO HIPÓLITO HONORIO HORACIO HUMBERTO ILDEFONSO INOCENCIO ISMAEL JACINTO JACOBO
+JUSTINIANO JUSTINO LEANDRO LEOCADIO LEOPOLDO LIBORIO LISANDRO LUCAS LUCIANO MACARIO MAMERTO
+MARCELO MARCIAL MARCIANO MATEO MAXIMILIANO MELCHOR MELITÓN NAZARIO NEMESIO NICASIO NORBERTO
+OCTAVIO OLEGARIO OSVALDO PASCUAL PAULINO PLÁCIDO POLICARPO PORFIRIO PRIMITIVO PRUDENCIO QUINTÍN
+RAMIRO REMIGIO RENATO RICARDO RIGOBERTO RÓMULO ROSENDO RUFINO RUPERTO SALOMÓN SANDALIO SATURNINO
+SEGUNDO SERAFÍN SERVANDO SEVERINO SILVERIO SILVESTRE SIMEÓN SIMÓN SIXTO TADEO TELÉSFORO TEODORO
+TEÓFILO TIBURCIO TIMOTEO UBALDO URBANO VALERIANO VALERIO VENANCIO VIDAL VIRGILIO WENCESLAO
+ZACARÍAS ZENÓN""".split()
+NAMES_F = """ADELAIDA ADELINA AGRIPINA ALBERTINA ALEJANDRINA ALTAGRACIA ANACLETA ANTONINA AQUILINA
+AURORA BALBINA BASILISA BEATRIZ BENIGNA BERNARDITA BIBIANA BRÍGIDA CANDELARIA CÁNDIDA CASILDA
+CASIMIRA CELEDONIA CELESTINA CESÁREA CIPRIANA CLEMENTINA CLOTILDE COLUMBA CORALIA CRESCENCIA
+CUSTODIA DAMIANA DEMETRIA DOMINGA DOROTEA EDELMIRA ELEUTERIA ELODIA EMERENCIANA ENRIQUETA
+ERMELINDA ESCOLÁSTICA ESPERANZA ESTEFANÍA EUFEMIA EUFRASIA EULALIA EVANGELINA FABIOLA FAUSTINA
+FELICIA FERMINA FIDELIA FLAVIA FLORA FORTUNATA GENOVEVA GRISELDA HERMINIA HILDA HONORIA HORTENSIA
+IDALIA ILDEFONSA ILUMINADA JACINTA JAVIERA JESUSA JOAQUINA JOVITA JUSTINA LEOCADIA LEONOR LEONTINA
+LIBORIA MACARIA MANUELA MARCELINA MICAELA MODESTA NAZARIA NICOLASA NORBERTA OBDULIA OCTAVIA OTILIA
+PASCUALA PASTORA PAULINA PERPETUA PETRONILA PLÁCIDA POLICARPA PORFIRIA PRUDENCIA RAMONA RESTITUTA
+ROGELIA ROSALBA ROSALÍA RUFINA SABINA SALOMÉ SATURNINA SEGUNDA SERAFINA SERVANDA SEVERINA SILVANA
+SILVINA SIMONA SOLEDAD TECLA TEODORA TEÓFILA TIBURCIA TIMOTEA TOMASA UBALDA URBANA ÚRSULA VALERIA
+VENANCIA VERÓNICA VICENTA ZENAIDA ZOILA""".split()
+
+# Los «San X» que el censo ya tiene sirven igual, cambiados de género: la base está atestiguada en
+# esta misma toponimia, así que «Santa Baldomera» suena más de acá que un nombre sacado de la
+# lista. Se exige que la base sea nombre de pila; si no, de SAN QUILCO sale «Santa Quilca».
+# Y no todo masculino tiene femenino: los que no, a mano.
+SWAP_REJECT = {"ALEJA"}
+saints = [r for r in real if len(r["name"].split()) == 2 and r["name"].split()[0] in ("SAN", "SANTA")]
+used_m = {r["name"].split()[1] for r in saints if r["name"].split()[0] == "SAN"}
+used_f = {r["name"].split()[1] for r in saints if r["name"].split()[0] == "SANTA"}
+swaps = sorted(
+    w[:-1] + "A" for w in used_m
+    if w in NAMES_M and w.endswith("O") and w[:-1] + "A" not in used_f
+    and w[:-1] + "A" not in SWAP_REJECT
+)
+
+SAINT_TARGET, SWAP_TARGET = 22, 5
+
+
+def saint_style() -> str:
+    """Región de un San/Santa real, para que el inventado no quede sin zona."""
+    return random.choice(saints)["region"]
+
+
+got = 0
+while got < SWAP_TARGET and swaps:
+    w = swaps.pop(random.randrange(len(swaps)))
+    n = f"SANTA {w}"
+    if exists(n):
+        continue
+    add(n, saint_style(), "saint")
+    got += 1
+
+tries = 0
+while got < SAINT_TARGET and tries < 5000:
+    tries += 1
+    # El artículo sigue la proporción de los reales, por lo mismo que `pickForm` sortea la forma
+    # con los pesos de los reales: si el reparto no calzara, «Santa» sería pista.
+    art = random.choices(("SAN", "SANTA"), weights=(len(used_m), len(used_f)))[0]
+    n = f"{art} {random.choice(NAMES_M if art == 'SAN' else NAMES_F)}"
+    if exists(n):
+        continue
+    add(n, saint_style(), "saint")
+    got += 1
+
 print(collections.Counter(f["kind"] for f in fakes))
 (PROCESSED / "fake.json").write_text(json.dumps(fakes, ensure_ascii=False))
