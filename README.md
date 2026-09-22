@@ -81,18 +81,19 @@ copia a `public/geo/` los 3.943 que una partida puede llegar a pedir —de los 1
 
 ## Inventados
 
-`build_fake.py` los genera de cuatro formas:
+`build_fake.py` los genera de cinco formas:
 
 - Cadena de Markov de caracteres de orden 3, un modelo por zona (norte, centro, sur), entrenada con nombres de una palabra sin terminaciones castellanas: *Chaiguimán*.
 - Accidente geográfico + nombre indígena de otra localidad: *Loma Colimahuida*.
 - Nombre real con otro modificador: *Budi Norte*.
 - Artículo + sustantivo que aparece una sola vez en el censo: *La Curaquilla*.
+- San/Santa + nombre de pila ausente del censo: *San Clodomiro*. El censo no usa santos de calendario —hay San Carlitos, Santa Fanny, Santa Olga—, así que el patrón es «San/Santa + nombre de pila». Algunos salen de cambiarle el género a un San que sí existe: de San Baldomero, *Santa Baldomera*.
 
 Se descarta cualquiera que esté a distancia de Levenshtein menor que 2 de alguno de los 6.561 nombres del censo (localidades, aldeas, pueblos, ciudades y comunas). "Inventado" significa ausente del Censo 2017; un nombre genérico podría existir en otra fuente.
 
 ## Detalles no obvios
 
-- `build_fake.py` usa semilla fija y tarda alrededor de un minuto. Cambiar el orden de sus secciones o cualquier filtro cambia todos los inventados.
+- `build_fake.py` usa semilla fija y tarda alrededor de un minuto. Cambiar el orden de sus secciones o cualquier filtro cambia todos los inventados. Una sección nueva al final no: las anteriores consumen el azar antes que ella y salen igual.
 - `data/` se divide en dos: `raw/` es lo que se baja tal cual del censo y no se versiona;
   `processed/` es todo lo que generan los scripts y sí se versiona. Se edita `src/` y `scripts/`,
   nunca `processed/`.

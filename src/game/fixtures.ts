@@ -15,8 +15,14 @@ export const fakeGameData: GameData = {
     a: [["Chanco", 0, 0, ""]],
     b: [["Alto Hospicio", 0, 0, ""]],
     c: [["La Higuera", 0, 0, ""]],
+    d: [["Santa Rosa", 0, 0, ""]],
   },
-  F: { a: ["Chaiguimán"], b: ["Loma Colimahuida"], c: ["La Curaquilla"] },
+  F: {
+    a: ["Chaiguimán"],
+    b: ["Loma Colimahuida"],
+    c: ["La Curaquilla"],
+    d: ["Santa Baldomera"],
+  },
   comunas: ["Comuna"],
   regions: ["Región"],
 };

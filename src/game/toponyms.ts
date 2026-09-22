@@ -2,7 +2,7 @@ import type { Form, GameData, Toponym } from "./types";
 
 export const ROUNDS = 15;
 
-const FORMS: Form[] = ["a", "b", "c"];
+const FORMS: Form[] = ["a", "b", "c", "d"];
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
