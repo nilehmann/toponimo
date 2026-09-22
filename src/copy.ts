@@ -85,8 +85,6 @@ export const COPY = {
     tick: (n: number) => `Ronda ${n}`,
     counter: (n: number, total: number) => `Ronda ${n} de ${total}`,
     score: (n: number) => `${n} ${n === 1 ? "acierto" : "aciertos"}`,
-    intro:
-      "Cada letrero indica una localidad rural de Chile, o un nombre inventado para confundirte.",
     real: "Existe",
     fake: "Inventado",
     keyboard: "Teclado:",
