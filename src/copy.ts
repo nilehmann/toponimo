@@ -87,10 +87,10 @@ export const COPY = {
     counter: (n: number, total: number) => `Ronda ${n} de ${total}`,
     score: (n: number) => `${n} ${n === 1 ? "acierto" : "aciertos"}`,
     real: "Existe",
-    fake: "Inventado",
+    fake: "Chamullo",
     keyboard: "Teclado:",
     keyReal: "existe",
-    keyFake: "inventado",
+    keyFake: "chamullo",
     missing: (n: number) =>
       n === 0
         ? "Respondieron todos."
@@ -121,13 +121,13 @@ export const COPY = {
   reveal: {
     /** Sin respuesta: no hay acierto ni error que anunciar. */
     isReal: "Existe.",
-    isFake: "Es inventado.",
+    isFake: "Es chamullo.",
     rightReal: "Correcto, existe.",
-    rightFake: "Correcto, es inventado.",
+    rightFake: "Correcto, es chamullo.",
     wrongReal: "Incorrecto, existe.",
-    wrongFake: "Incorrecto, es inventado.",
+    wrongFake: "Incorrecto, es chamullo.",
     /** La franja cruzada sobre el letrero. */
-    fakeBand: "Inventado",
+    fakeBand: "Chamullo",
     where: (comuna: string, region: string) => `Comuna de ${comuna}, ${region}.`,
     notInCensus: "Este nombre no figura entre las localidades del Censo 2017.",
     map: (name: string) => `Mapa de ${name}`,
@@ -147,10 +147,10 @@ export const COPY = {
       [15, "Ruta completa sin un error."],
       [12, "Conoces bien los caminos rurales."],
       [9, "Más acierto que azar."],
-      [0, "Los nombres inventados te engañaron seguido."],
+      [0, "Caíste seguido en el chamullo."],
     ] as [min: number, note: string][],
     realIn: (comuna: string) => `Existe, en ${comuna}`,
-    fake: "Inventado",
+    fake: "Chamullo",
     right: "Acertaste",
     wrong: "Fallaste",
     noAnswer: "Sin responder",
